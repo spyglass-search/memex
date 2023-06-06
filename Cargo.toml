@@ -4,7 +4,7 @@ members = [
     "bin/sightglass",
 
     "lib/api",
-    "lib/indexer",
+    "lib/embedder",
 ]
 
 [workspace.dependencies]

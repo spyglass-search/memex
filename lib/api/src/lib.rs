@@ -1,10 +1,22 @@
 use dotenv_codegen::dotenv;
 use serde_json::json;
 use std::{convert::Infallible, net::Ipv4Addr};
-use warp::{hyper::StatusCode, Filter, Rejection, Reply};
+use thiserror::Error;
+use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
+pub mod filters;
 pub mod schema;
 use schema::ErrorMessage;
+
+#[derive(Error, Debug)]
+pub enum ServerError {
+    #[error("Model error: {0}")]
+    ModelError(#[from] rust_bert::RustBertError),
+    #[error("Server error: {0}")]
+    Other(String),
+}
+
+impl Reject for ServerError {}
 
 // Handle custom errors/rejections
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
@@ -50,6 +62,7 @@ pub async fn start(host: Ipv4Addr, port: u16) {
         .allow_headers(["Authorization", "Content-Type"]);
 
     let filters = health_check()
+        .or(filters::add_document())
         .with(cors)
         .with(warp::trace::request())
         .recover(handle_rejection);
