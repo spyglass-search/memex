@@ -26,9 +26,7 @@ pub struct Args {
 
 #[derive(Debug, Display, Clone, PartialEq, EnumString)]
 pub enum Roles {
-    #[strum(serialize = "api")]
     Api,
-    #[strum(serialize = "worker")]
     Worker,
 }
 
@@ -36,7 +34,7 @@ pub enum Roles {
 enum Command {
     Debug,
     Serve {
-        #[arg(short, long)]
+        #[arg(short, long, default_values_t = vec![Roles::Api])]
         roles: Vec<Roles>,
     },
 }
@@ -64,7 +62,7 @@ async fn main() -> ExitCode {
 
     if let Command::Serve { roles } = args.command {
         log::info!("starting server with roles: {roles:?}");
-        let host =  match dotenv!("HOST").parse::<Ipv4Addr>() {
+        let host = match dotenv!("HOST").parse::<Ipv4Addr>() {
             Ok(host) => host,
             Err(err) => {
                 log::error!("Invalid HOST string {err}");
