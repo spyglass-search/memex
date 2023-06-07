@@ -13,6 +13,7 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.0.32", features = ["derive", "env"] }
 dotenv = { workspace = true }
 dotenv_codegen = { workspace = true }
+futures = "0.3.28"
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

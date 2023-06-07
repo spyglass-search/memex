@@ -1,6 +1,7 @@
 use dotenv_codegen::dotenv;
 
 use clap::{Parser, Subcommand};
+use futures::future::join_all;
 use std::{net::Ipv4Addr, process::ExitCode};
 use strum_macros::{Display, EnumString};
 use tracing_log::LogTracer;
@@ -39,6 +40,7 @@ enum Command {
     },
 }
 
+
 #[tokio::main]
 async fn main() -> ExitCode {
     dotenv::dotenv().ok();
@@ -61,6 +63,11 @@ async fn main() -> ExitCode {
     let args = Args::parse();
 
     if let Command::Serve { roles } = args.command {
+        if roles.is_empty() {
+            log::error!("No roles specified");
+            return ExitCode::FAILURE;
+        }
+
         log::info!("starting server with roles: {roles:?}");
         let host = match dotenv!("HOST").parse::<Ipv4Addr>() {
             Ok(host) => host,
@@ -78,7 +85,30 @@ async fn main() -> ExitCode {
             }
         };
 
-        api::start(host, port).await;
+        let mut handles = Vec::new();
+        if roles.contains(&Roles::Api) {
+            let api_rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_name("api-runtime")
+                .build()
+                .expect("Unable to create runtime");
+
+            let handle = api_rt.spawn(api::start(host, port));
+            handles.push(handle);
+        }
+
+        if roles.contains(&Roles::Worker) {
+            let worker_rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_name("api-runtime")
+                .build()
+                .expect("Unable to create runtime");
+
+            let handle = worker_rt.spawn(api::start(host, port));
+            handles.push(handle);
+        }
+
+        let _ = join_all(handles).await;
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE

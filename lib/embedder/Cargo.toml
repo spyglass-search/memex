@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
+log = { workspace = true }
 rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
-tokio = { workspace = true }
 thiserror = "1.0"
 tokenizers = "0.13.3"
+tokio = { workspace = true }

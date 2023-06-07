@@ -15,6 +15,12 @@ pub enum EmbeddingError {
     SetupError(String),
 }
 
+#[derive(Debug)]
+pub struct EmbeddingResult {
+    pub content: String,
+    pub vector: Vec<f32>,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum EmbeddingsModelType {
     DistiluseBaseMultilingualCased,
@@ -60,12 +66,13 @@ impl Default for ModelConfig {
         Self {
             model: EmbeddingsModelType::AllMiniLmL12V2,
             max_length: 256,
-            stride: 128,
+            // Overlap roughly a third of the previous text.
+            stride: 86,
         }
     }
 }
 
-type Message = (String, oneshot::Sender<Vec<Vec<f32>>>);
+type Message = (String, oneshot::Sender<Vec<EmbeddingResult>>);
 
 #[derive(Debug)]
 pub struct SentenceEmbedder {
@@ -94,8 +101,29 @@ impl SentenceEmbedder {
 
         while let Ok((text, sender)) = receiver.recv() {
             let segments = segment_text(&model_config, &text).unwrap();
+            let embeddings = model.encode(&segments)?;
 
-            let results = model.encode(&segments)?;
+            if segments.len() != embeddings.len() {
+                log::error!("# of embeddings doesn't match # of segments");
+                return Err(RustBertError::TokenizerError(
+                    "# of embeddings doesn't match # of segments".into(),
+                ));
+            }
+
+            let results = segments
+                .iter()
+                .enumerate()
+                .map(|(idx, content)| {
+                    let vector = embeddings
+                        .get(idx)
+                        .expect("# of embeddings should match # of segments");
+                    EmbeddingResult {
+                        content: content.to_owned(),
+                        vector: vector.to_owned(),
+                    }
+                })
+                .collect::<Vec<EmbeddingResult>>();
+
             sender.send(results).expect("sending results");
         }
 
@@ -103,7 +131,7 @@ impl SentenceEmbedder {
     }
 
     /// Encode the sentences and return the results
-    pub async fn encode(&self, text: String) -> anyhow::Result<Vec<Vec<f32>>> {
+    pub async fn encode(&self, text: String) -> anyhow::Result<Vec<EmbeddingResult>> {
         let (sender, receiver) = oneshot::channel();
         task::block_in_place(|| self.sender.send((text, sender)))?;
         Ok(receiver.await?)
