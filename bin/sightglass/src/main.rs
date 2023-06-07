@@ -40,7 +40,6 @@ enum Command {
     },
 }
 
-
 #[tokio::main]
 async fn main() -> ExitCode {
     dotenv::dotenv().ok();

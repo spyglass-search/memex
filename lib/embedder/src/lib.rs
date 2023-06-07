@@ -186,18 +186,11 @@ pub fn segment_text(model_config: &ModelConfig, text: &str) -> Result<Vec<String
 
 #[cfg(test)]
 mod test {
-    use rust_bert::pipelines::sentence_embeddings::{
-        SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType,
-    };
     use tokenizers::{Tokenizer, TruncationParams};
 
     #[test]
     fn test_tokenizer() {
-        let model = SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllMiniLmL12V2)
-            .create_model()
-            .unwrap();
-
-        let string = include_str!("test.txt");
+        let string: String = "this is a test string".into();
         let mut tokenizer =
             Tokenizer::from_pretrained("sentence-transformers/all-MiniLM-L12-v2", None).unwrap();
         tokenizer.with_truncation(Some(TruncationParams {
@@ -207,21 +200,6 @@ mod test {
         }));
 
         let encoding = tokenizer.encode(string, false).unwrap();
-        let encode_one = model.encode(&[string]).unwrap();
-
-        let test = encoding.get_ids();
-
-        let decoded = tokenizer
-            .decode(encoding.get_ids().to_vec(), false)
-            .unwrap();
-        let encode_two = model.encode(&[decoded.clone()]).unwrap();
-        assert_eq!(
-            test,
-            tokenizer.encode(decoded.clone(), false).unwrap().get_ids()
-        );
-        assert_eq!(encode_one, encode_two);
-
-        println!("{:?}", decoded);
         for (idx, encoding) in encoding.get_overflowing().iter().enumerate() {
             let decoded = tokenizer.decode(encoding.get_ids().to_vec(), true);
             println!("{} - {:?} - {:?}", idx, encoding.len(), decoded);

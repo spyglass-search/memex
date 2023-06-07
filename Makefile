@@ -5,10 +5,10 @@ build:
 	cargo build -p sightglass
 
 fmt:
-	cargo fmt
+	cargo fmt --all
 
 clippy: fmt
-	cargo clippy
+	cargo clippy --all
 
 docker-build:
 	docker build -f Dockerfile -t spyglass-search/sightglass:latest .
