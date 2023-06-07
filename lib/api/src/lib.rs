@@ -1,5 +1,7 @@
 use dotenv_codegen::dotenv;
+use sea_orm::DatabaseConnection;
 use serde_json::json;
+use shared::db::create_connection_by_uri;
 use std::{convert::Infallible, net::Ipv4Addr};
 use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
@@ -55,14 +57,19 @@ pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
         .map(move || warp::reply::json(&json!({ "version": version })))
 }
 
-pub async fn start(host: Ipv4Addr, port: u16) {
+pub async fn start(host: Ipv4Addr, port: u16, db_uri: &str) {
+    // Attempt to connect to db
+    let db_connection = create_connection_by_uri(db_uri)
+        .await
+        .unwrap_or_else(|_| panic!("Unable to connect to database: {}", db_uri));
+
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
     let filters = health_check()
-        .or(filters::add_document())
+        .or(filters::build(&db_connection))
         .with(cors)
         .with(warp::trace::request())
         .recover(handle_rejection);
@@ -75,4 +82,11 @@ pub async fn start(host: Ipv4Addr, port: u16) {
         });
 
     handle.await;
+}
+
+/// Filter that will clone the db for use in handlers
+pub fn with_db(
+    db: DatabaseConnection,
+) -> impl Filter<Extract = (DatabaseConnection,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || db.clone())
 }

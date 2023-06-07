@@ -84,6 +84,8 @@ async fn main() -> ExitCode {
             }
         };
 
+        let db_uri = dotenv!("DATABASE_CONNECTION");
+
         let mut handles = Vec::new();
         if roles.contains(&Roles::Api) {
             let api_rt = tokio::runtime::Builder::new_multi_thread()
@@ -92,19 +94,19 @@ async fn main() -> ExitCode {
                 .build()
                 .expect("Unable to create runtime");
 
-            let handle = api_rt.spawn(api::start(host, port));
+            let handle = api_rt.spawn(api::start(host, port, db_uri));
             handles.push(handle);
         }
 
         if roles.contains(&Roles::Worker) {
-            let worker_rt = tokio::runtime::Builder::new_multi_thread()
+            let _worker_rt = tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .thread_name("api-runtime")
                 .build()
                 .expect("Unable to create runtime");
 
-            let handle = worker_rt.spawn(api::start(host, port));
-            handles.push(handle);
+            // let handle = worker_rt.spawn(api::start(host, port));
+            // handles.push(handle);
         }
 
         let _ = join_all(handles).await;

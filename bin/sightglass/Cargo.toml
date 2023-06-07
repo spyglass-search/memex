@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 async-trait = "0.1.68"
 bytes = "1.2.1"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { workspace = true }
 clap = { version = "4.0.32", features = ["derive", "env"] }
 dotenv = { workspace = true }
 dotenv_codegen = { workspace = true }
