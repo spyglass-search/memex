@@ -3,7 +3,7 @@ use uuid::Uuid;
 use warp::Filter;
 
 use crate::{schema::InsertDocumentRequest, ServerError};
-use embedder::SentenceEmbedder;
+use embedder::{ModelConfig, SentenceEmbedder};
 
 const LIMIT_1_MB: u64 = 1000 * 1024;
 const LIMIT_10_MB: u64 = 10 * LIMIT_1_MB;
@@ -25,13 +25,14 @@ pub fn add_document() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
 async fn handle_add_document(
     req: InsertDocumentRequest,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let (_handle, embedder) = SentenceEmbedder::spawn();
+    let model_config = ModelConfig::default();
+    let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
 
-    let embeddings = match embedder.encode(vec![req.content]).await {
+    let embeddings = match embedder.encode(req.content).await {
         Ok(res) => res,
         Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
     };
-    dbg!(embeddings);
+    dbg!(embeddings.len());
 
     // Create an UUID for this document & add to queue
     let doc_id = Uuid::new_v4();

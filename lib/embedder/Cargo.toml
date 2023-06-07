@@ -9,3 +9,5 @@ edition = "2021"
 anyhow = "1.0"
 rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
 tokio = { workspace = true }
+thiserror = "1.0"
+tokenizers = "0.13.3"
