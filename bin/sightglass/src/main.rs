@@ -35,7 +35,7 @@ pub enum Roles {
 enum Command {
     Debug,
     Serve {
-        #[arg(short, long, default_values_t = vec![Roles::Api])]
+        #[arg(short, long, default_values_t = vec![Roles::Api, Roles::Worker])]
         roles: Vec<Roles>,
     },
 }

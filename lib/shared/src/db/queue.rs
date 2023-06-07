@@ -18,6 +18,12 @@ pub enum JobStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
+pub struct TaskPayload {
+    pub task_id: String,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
 pub struct TaskError {
     pub error_type: String,
     pub msg: String,
@@ -28,10 +34,7 @@ pub struct TaskError {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    /// Friendly job id generated when this is first inserted.
-    pub job_id: String,
-    /// Text to embed
-    pub content: String,
+    pub payload: TaskPayload,
     /// Task status.
     pub status: JobStatus,
     /// If this failed, the reason for the failure
@@ -112,8 +115,10 @@ where
     C: ConnectionTrait,
 {
     let mut new = ActiveModel::new();
-    new.job_id = Set(job_id.to_string());
-    new.content = Set(content.to_string());
+    new.payload = Set(TaskPayload {
+        task_id: job_id.to_string(),
+        content: content.to_string(),
+    });
 
     Entity::insert(new).exec_with_returning(db).await
 }
@@ -136,8 +141,7 @@ pub struct Job {
 pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbErr> {
     let backend = db.get_database_backend();
     let sql: String = match backend {
-        DatabaseBackend::Sqlite => {
-            r#"
+        DatabaseBackend::Sqlite => r#"
             UPDATE queue
             SET
                 status = 'Processing',
@@ -150,8 +154,8 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 ORDER BY queue.created_at ASC
                 LIMIT 1
             )
-            RETURNING queue.id"#.into()
-        },
+            RETURNING queue.id"#
+            .into(),
         _ => r#"
             UPDATE queue
             SET
@@ -170,11 +174,7 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
             .into(),
     };
 
-    let query = Statement::from_sql_and_values(
-        backend,
-        &sql,
-        [chrono::Utc::now().into()],
-    );
+    let query = Statement::from_sql_and_values(backend, &sql, [chrono::Utc::now().into()]);
 
     Job::find_by_statement(query).one(db).await
 }
@@ -184,7 +184,10 @@ mod test {
     use sea_orm::EntityTrait;
 
     use super::{enqueue, Entity};
-    use crate::db::{create_connection_by_uri, queue::{check_for_jobs, JobStatus}};
+    use crate::db::{
+        create_connection_by_uri,
+        queue::{check_for_jobs, JobStatus},
+    };
 
     #[tokio::test]
     async fn test_enqueue_and_dequeue() {

@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1.68"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 bytes = "1.2.1"
 chrono = { workspace = true }
 clap = { version = "4.0.32", features = ["derive", "env"] }
