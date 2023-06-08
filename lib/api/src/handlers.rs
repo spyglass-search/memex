@@ -22,7 +22,9 @@ pub async fn handle_add_document(
     }
 
     // Create an UUID for this document & add to queue
-    Ok(warp::reply::json(&serde_json::json!({ "id": job_id, "status": "Queued" })))
+    Ok(warp::reply::json(
+        &serde_json::json!({ "id": job_id, "status": "Queued" }),
+    ))
 }
 
 pub async fn handle_search_docs(
@@ -40,7 +42,11 @@ pub async fn handle_search_docs(
 
     let vector = match embedder.encode_single(req.query).await {
         Ok(Some(vector)) => vector,
-        _ => return Err(warp::reject::custom(ServerError::Other("Invalid query".into()))),
+        _ => {
+            return Err(warp::reject::custom(ServerError::Other(
+                "Invalid query".into(),
+            )))
+        }
     };
 
     let search_result = match client

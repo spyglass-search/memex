@@ -31,7 +31,11 @@ pub async fn get_or_create_vector_storage(collection: &str) -> VectorStorage {
         Err(err) => panic!("Unable to connect to vectordb: {err}"),
     };
 
-    if client.collection_info(collection.to_string()).await.is_err() {
+    if client
+        .collection_info(collection.to_string())
+        .await
+        .is_err()
+    {
         if let Err(err) = client
             .create_collection(&CreateCollection {
                 collection_name: collection.to_string(),

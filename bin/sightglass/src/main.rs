@@ -51,7 +51,6 @@ async fn main() -> ExitCode {
                 .add_directive("worker=DEBUG".parse().expect("invalid log filter"))
                 .add_directive("embedder=DEBUG".parse().expect("invalid log filter"))
                 .add_directive("cached_path=WARN".parse().expect("invalid log filter")),
-
         )
         .with(
             fmt::Layer::new()

@@ -97,7 +97,7 @@ impl SentenceEmbedder {
     ) -> Result<(), RustBertError> {
         // Needs to be in sync runtime, async doesn't work
         let model: rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsModel =
-        SentenceEmbeddingsBuilder::remote(model_config.model.into()).create_model()?;
+            SentenceEmbeddingsBuilder::remote(model_config.model.into()).create_model()?;
 
         while let Ok((text, segment, sender)) = receiver.recv() {
             let segments = if segment {
