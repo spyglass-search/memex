@@ -72,7 +72,7 @@ impl Default for ModelConfig {
     }
 }
 
-type Message = (String, oneshot::Sender<Vec<EmbeddingResult>>);
+type Message = (String, bool, oneshot::Sender<Vec<EmbeddingResult>>);
 
 #[derive(Debug)]
 pub struct SentenceEmbedder {
@@ -97,12 +97,16 @@ impl SentenceEmbedder {
     ) -> Result<(), RustBertError> {
         // Needs to be in sync runtime, async doesn't work
         let model: rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsModel =
-            SentenceEmbeddingsBuilder::remote(model_config.model.into()).create_model()?;
+        SentenceEmbeddingsBuilder::remote(model_config.model.into()).create_model()?;
 
-        while let Ok((text, sender)) = receiver.recv() {
-            let segments = segment_text(&model_config, &text).unwrap();
+        while let Ok((text, segment, sender)) = receiver.recv() {
+            let segments = if segment {
+                segment_text(&model_config, &text).unwrap()
+            } else {
+                vec![text]
+            };
+
             let embeddings = model.encode(&segments)?;
-
             if segments.len() != embeddings.len() {
                 log::error!("# of embeddings doesn't match # of segments");
                 return Err(RustBertError::TokenizerError(
@@ -133,8 +137,17 @@ impl SentenceEmbedder {
     /// Encode the sentences and return the results
     pub async fn encode(&self, text: String) -> anyhow::Result<Vec<EmbeddingResult>> {
         let (sender, receiver) = oneshot::channel();
-        task::block_in_place(|| self.sender.send((text, sender)))?;
+        task::block_in_place(|| self.sender.send((text, true, sender)))?;
         Ok(receiver.await?)
+    }
+
+    /// Single shot encoding, no segmentation. If the text is larger than the context size,
+    /// it will be truncated.
+    pub async fn encode_single(&self, text: String) -> anyhow::Result<Option<EmbeddingResult>> {
+        let (sender, receiver) = oneshot::channel();
+        task::block_in_place(|| self.sender.send((text, false, sender)))?;
+        let mut value = receiver.await?;
+        Ok(value.pop())
     }
 }
 
@@ -166,14 +179,14 @@ pub fn segment_text(model_config: &ModelConfig, text: &str) -> Result<Vec<String
     let mut segments = Vec::new();
 
     let encoding = tokenizer.encode(text, false).unwrap();
-    let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), false) {
+    let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
         Ok(decoded) => decoded,
         Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
     };
 
     segments.push(decoded);
     for encoding in encoding.get_overflowing() {
-        let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), false) {
+        let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
             Ok(decoded) => decoded,
             Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
         };

@@ -202,10 +202,9 @@ pub async fn run_workers(
                                                 .enumerate()
                                                 .map(|(idx, embedding)| {
                                                     let id = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.task_id).as_bytes()).to_string();
-                                                    // Keep track of original task id
                                                     let payload: Payload = json!({
                                                         "task_id": task.task_id,
-                                                        "segment_id": idx,
+                                                        "segment": idx,
                                                         "content": embedding.content
                                                     })
                                                         .try_into()

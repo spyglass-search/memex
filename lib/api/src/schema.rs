@@ -28,7 +28,7 @@ impl SearchDocsRequest {
 #[derive(Serialize)]
 pub struct Document {
     pub id: String,
-    pub segment_id: String,
+    pub segment: i64,
     pub content: String,
     pub score: f32,
 }

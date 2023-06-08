@@ -38,11 +38,10 @@ pub async fn handle_search_docs(
     let config = QdrantClientConfig::from_url(&qdrant_host);
     let client = QdrantClient::new(Some(config)).expect("Unable to create qdrant");
 
-    let vector = match embedder.encode(req.query).await {
-        Ok(vector) => vector,
-        Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
+    let vector = match embedder.encode_single(req.query).await {
+        Ok(Some(vector)) => vector,
+        _ => return Err(warp::reject::custom(ServerError::Other("Invalid query".into()))),
     };
-    let vector = vector.get(0).unwrap();
 
     let search_result = match client
         .search_points(&SearchPoints {
@@ -79,19 +78,12 @@ pub async fn handle_search_docs(
                 })
                 .unwrap_or(String::from("UNK"));
 
-            let segment_id = if let Some(sid) = doc
-                .payload
-                .get("segment_id")
-                .and_then(|x| x.kind.to_owned())
+            let segment: i64 = if let Some(Kind::IntegerValue(val)) =
+                doc.payload.get("segment").and_then(|x| x.kind.to_owned())
             {
-                match sid {
-                    Kind::DoubleValue(val) => val.to_string(),
-                    Kind::IntegerValue(val) => val.to_string(),
-                    Kind::StringValue(val) => val,
-                    _ => String::from("Unk"),
-                }
+                val
             } else {
-                String::from("Unk")
+                -1
             };
 
             let content = if let Some(Kind::StringValue(content)) =
@@ -104,7 +96,7 @@ pub async fn handle_search_docs(
 
             Document {
                 id,
-                segment_id,
+                segment,
                 content,
                 score: doc.score,
             }
