@@ -1,19 +1,16 @@
-use std::sync::{Arc, Mutex};
-
 use embedder::{ModelConfig, SentenceEmbedder};
-use qdrant_client::prelude::Payload;
-use qdrant_client::qdrant::PointStruct;
 use sea_orm::prelude::*;
-use serde_json::json;
+use sea_orm::Set;
+use sea_orm::TransactionTrait;
 use shared::db::create_connection_by_uri;
+use shared::db::document;
 use shared::db::queue::{self, check_for_jobs, Job};
-use storage::get_or_create_vector_storage;
+use shared::vector::{get_vector_storage, VectorData, VectorStorage};
+use std::sync::{Arc, Mutex};
 use tokio::{
     sync::{broadcast, mpsc},
     time::Duration,
 };
-
-mod storage;
 
 pub const NAMESPACE: uuid::Uuid = uuid::uuid!("5fdfe40a-de2c-11ed-bfa7-00155deae876");
 
@@ -166,11 +163,14 @@ pub async fn run_workers(
     mut task_queue: mpsc::Receiver<WorkerCommand>,
     mut shutdown_rx: broadcast::Receiver<AppShutdown>,
 ) {
-    let model_config = ModelConfig::default();
-
-    // Connect to vector db
-    let collection = std::env::var("QDRANT_COLLECTION").expect("QDRANT_COLLECTION not set");
-    let client = get_or_create_vector_storage(&collection).await;
+    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
+    let client = match get_vector_storage(&vector_uri).await {
+        Ok(client) => client,
+        Err(err) => {
+            log::error!("Unable to connect to vector db: {err}");
+            return;
+        }
+    };
 
     loop {
         tokio::select! {
@@ -190,42 +190,9 @@ pub async fn run_workers(
                                 let db = db.clone();
                                 log::info!("[job={}] spawning task", task.task_id);
                                 tokio::spawn(async move {
-                                    let start = std::time::Instant::now();
-                                    let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
-                                    log::info!("[job={}] generating embeddings", task.task_id);
-                                    match embedder.encode(task.payload.content).await {
-                                        Ok(embeddings) => {
-                                            log::info!("[job={}] created {} embeddings in {}ms", task.task_id, embeddings.len(), start.elapsed().as_millis());
-
-                                            // Add points
-                                            let points = embeddings.iter()
-                                                .enumerate()
-                                                .map(|(idx, embedding)| {
-                                                    let id = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.task_id).as_bytes()).to_string();
-                                                    let payload: Payload = json!({
-                                                        "task_id": task.task_id,
-                                                        "segment": idx,
-                                                        "content": embedding.content
-                                                    })
-                                                        .try_into()
-                                                        .unwrap();
-
-                                                    PointStruct::new(id, embedding.vector.clone(), payload)
-                                                }).collect::<Vec<PointStruct>>();
-
-                                            if let Err(err) = client.add_vectors(points).await {
-                                                log::error!("[job={}] Unable to upsert points: {err}", task.task_id);
-                                            } else {
-                                                log::info!("[job={}] Persisted embeddings", task.task_id);
-                                            }
-                                        }
-                                        Err(err) => {
-                                            log::error!("[job={}] Unable to encode: {err}", task.task_id);
-                                        }
+                                    if let Err(err) = _process_embeddings(db, client, task.clone()).await {
+                                        log::error!("[job={}] Unable to process embeddings: {err}", task.task_id);
                                     }
-
-                                    let _ = queue::mark_done(&db, task.id).await;
-                                    log::info!("[job={}] job finished in {}ms", task.task_id, start.elapsed().as_millis());
 
                                     if let Ok(mut limits) = limits.lock() {
                                         limits.num_active -= 1;
@@ -243,4 +210,58 @@ pub async fn run_workers(
             }
         }
     }
+}
+
+async fn _process_embeddings(
+    db: DatabaseConnection,
+    client: VectorStorage,
+    task: queue::Model,
+) -> anyhow::Result<()> {
+    let start = std::time::Instant::now();
+    let model_config = ModelConfig::default();
+
+    let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
+    log::info!("[job={}] generating embeddings", task.task_id);
+    let embeddings = embedder.encode(task.payload.content).await?;
+    log::info!(
+        "[job={}] created {} embeddings in {}ms",
+        task.task_id,
+        embeddings.len(),
+        start.elapsed().as_millis()
+    );
+
+    let txn = db.begin().await?;
+    // Persist vectors to db & vector store
+    let mut vectors = Vec::new();
+    for (idx, embedding) in embeddings.iter().enumerate() {
+        let doc_id = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.task_id).as_bytes())
+            .to_string();
+
+        let mut new_doc = document::ActiveModel::new();
+        new_doc.task_id = Set(task.task_id.to_string());
+        new_doc.document_id = Set(doc_id.clone());
+        new_doc.segment = Set(idx as i64);
+        new_doc.content = Set(embedding.content.clone());
+        new_doc.insert(&txn).await?;
+
+        vectors.push(VectorData {
+            doc_id,
+            vector: embedding.vector.clone(),
+        });
+    }
+
+    if let Err(err) = client.add_vectors(vectors).await {
+        log::error!("[job={}] Unable to upsert points: {err}", task.task_id);
+    } else {
+        log::info!("[job={}] Persisted embeddings", task.task_id);
+    }
+    txn.commit().await?;
+    let _ = queue::mark_done(&db, task.id).await;
+    log::info!(
+        "[job={}] job finished in {}ms",
+        task.task_id,
+        start.elapsed().as_millis()
+    );
+
+    Ok(())
 }

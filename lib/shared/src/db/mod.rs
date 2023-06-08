@@ -1,5 +1,6 @@
 use sea_orm::{prelude::*, ConnectOptions, Database, DatabaseBackend, ExecResult, Schema};
 
+pub mod document;
 pub mod queue;
 
 async fn make_table(
@@ -21,6 +22,7 @@ pub async fn setup_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr>
     let backend = db.get_database_backend();
     let schema = Schema::new(backend);
 
+    make_table(db, &backend, &schema, document::Entity).await?;
     make_table(db, &backend, &schema, queue::Entity).await?;
 
     Ok(())

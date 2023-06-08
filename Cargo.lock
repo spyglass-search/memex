@@ -2773,11 +2773,13 @@ dependencies = [
  "chrono",
  "hnsw_rs",
  "log",
+ "qdrant-client",
  "sea-orm",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -4034,11 +4036,11 @@ dependencies = [
  "anyhow",
  "embedder",
  "log",
- "qdrant-client",
  "sea-orm",
  "serde_json",
  "shared",
  "tokio",
+ "url",
  "uuid",
 ]
 

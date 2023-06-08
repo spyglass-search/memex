@@ -3,12 +3,11 @@ use crate::{
     ServerError,
 };
 use embedder::{ModelConfig, SentenceEmbedder};
-use qdrant_client::{
-    prelude::*,
-    qdrant::{value::Kind, with_payload_selector::SelectorOptions, WithPayloadSelector},
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use shared::{
+    db::{document, queue},
+    vector::get_vector_storage,
 };
-use sea_orm::DatabaseConnection;
-use shared::db::queue;
 use uuid::Uuid;
 
 pub async fn handle_add_document(
@@ -29,16 +28,19 @@ pub async fn handle_add_document(
 
 pub async fn handle_search_docs(
     req: schema::SearchDocsRequest,
-    _db: DatabaseConnection,
+    db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let (_handle, embedder) = SentenceEmbedder::spawn(&ModelConfig::default());
 
-    let collection = std::env::var("QDRANT_COLLECTION").expect("QDRANT_COLLECTION not set");
-
-    let qdrant_host = std::env::var("QDRANT_ENDPOINT").expect("QDRANT_ENDPOINT env var not set");
-
-    let config = QdrantClientConfig::from_url(&qdrant_host);
-    let client = QdrantClient::new(Some(config)).expect("Unable to create qdrant");
+    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
+    let client = match get_vector_storage(&vector_uri).await {
+        Ok(client) => client,
+        Err(err) => {
+            return Err(warp::reject::custom(ServerError::Other(format!(
+                "Unable to connect to vector db: {err}"
+            ))))
+        }
+    };
 
     let vector = match embedder.encode_single(req.query).await {
         Ok(Some(vector)) => vector,
@@ -49,65 +51,27 @@ pub async fn handle_search_docs(
         }
     };
 
-    let search_result = match client
-        .search_points(&SearchPoints {
-            collection_name: collection,
-            vector: vector.vector.to_owned(),
-            filter: None,
-            limit: req.limit,
-            with_vectors: None,
-            with_payload: Some(WithPayloadSelector {
-                selector_options: Some(SelectorOptions::Enable(true)),
-            }),
-            params: None,
-            score_threshold: None,
-            offset: None,
-            ..Default::default()
-        })
-        .await
-    {
+    let search_result = match client.search(&vector.vector).await {
         Ok(result) => result,
         Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
     };
 
-    let results = search_result
-        .result
-        .iter()
-        .map(|doc| {
-            let id = doc
-                .id
-                .as_ref()
-                .and_then(|x| x.point_id_options.clone())
-                .map(|x| match x {
-                    point_id::PointIdOptions::Num(id) => id.to_string(),
-                    point_id::PointIdOptions::Uuid(id) => id,
-                })
-                .unwrap_or(String::from("UNK"));
-
-            let segment: i64 = if let Some(Kind::IntegerValue(val)) =
-                doc.payload.get("segment").and_then(|x| x.kind.to_owned())
-            {
-                val
-            } else {
-                -1
-            };
-
-            let content = if let Some(Kind::StringValue(content)) =
-                doc.payload.get("content").and_then(|x| x.kind.to_owned())
-            {
-                content
-            } else {
-                "".into()
-            };
-
-            Document {
-                id,
-                segment,
-                content,
-                score: doc.score,
-            }
-        })
-        .collect::<Vec<schema::Document>>();
+    // Grab the document data for each search result
+    let mut results = Vec::new();
+    for (doc_id, score) in search_result.iter() {
+        if let Ok(Some(doc)) = document::Entity::find()
+            .filter(document::Column::DocumentId.eq(doc_id))
+            .one(&db)
+            .await
+        {
+            results.push(Document {
+                id: doc_id.to_string(),
+                segment: doc.segment,
+                content: doc.content,
+                score: *score,
+            });
+        }
+    }
 
     let result = schema::SearchResult { results };
     Ok(warp::reply::json(&result))

@@ -5,27 +5,8 @@ use qdrant_client::{
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-#[derive(Clone)]
-pub struct VectorStorage {
-    pub collection: String,
-    pub client: Arc<Mutex<QdrantClient>>,
-}
-
-impl VectorStorage {
-    pub async fn add_vectors(&self, points: Vec<PointStruct>) -> anyhow::Result<()> {
-        let client = self.client.lock().await;
-        client
-            .upsert_points_blocking(self.collection.clone(), points, None)
-            .await?;
-
-        Ok(())
-    }
-}
-
-pub async fn get_or_create_vector_storage(collection: &str) -> VectorStorage {
-    let qdrant_host = std::env::var("QDRANT_ENDPOINT").expect("QDRANT_ENDPOINT env var not set");
-
-    let config = QdrantClientConfig::from_url(&qdrant_host);
+pub async fn connect_to_qdrant(host: &str, collection: &str) -> Arc<Mutex<QdrantClient>> {
+    let config = QdrantClientConfig::from_url(host);
     let client = match qdrant_client::client::QdrantClient::new(Some(config)) {
         Ok(client) => client,
         Err(err) => panic!("Unable to connect to vectordb: {err}"),
@@ -59,8 +40,5 @@ pub async fn get_or_create_vector_storage(collection: &str) -> VectorStorage {
         }
     }
 
-    VectorStorage {
-        collection: collection.to_string(),
-        client: Arc::new(Mutex::new(client)),
-    }
+    Arc::new(Mutex::new(client))
 }
