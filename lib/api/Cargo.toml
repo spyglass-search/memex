@@ -17,6 +17,7 @@ thiserror = "1.0"
 tokio = { workspace = true }
 uuid = { version = "1.3.3", features = ["v4", "fast-rng"] }
 warp = "0.3.3"
+qdrant-client = "1.2.0"
 
 embedder = { path = "../embedder" }
 shared = { path = "../shared" }

@@ -19,7 +19,6 @@ pub enum JobStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
 pub struct TaskPayload {
-    pub task_id: String,
     pub content: String,
 }
 
@@ -34,6 +33,7 @@ pub struct TaskError {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
+    pub task_id: String,
     pub payload: TaskPayload,
     /// Task status.
     pub status: JobStatus,
@@ -115,8 +115,8 @@ where
     C: ConnectionTrait,
 {
     let mut new = ActiveModel::new();
+    new.task_id = Set(job_id.to_string());
     new.payload = Set(TaskPayload {
-        task_id: job_id.to_string(),
         content: content.to_string(),
     });
 

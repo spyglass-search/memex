@@ -7,6 +7,7 @@ use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
 pub mod filters;
+pub mod handlers;
 pub mod schema;
 use schema::ErrorMessage;
 
@@ -57,11 +58,11 @@ pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
         .map(move || warp::reply::json(&json!({ "version": version })))
 }
 
-pub async fn start(host: Ipv4Addr, port: u16, db_uri: &str) {
+pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
     // Attempt to connect to db
-    let db_connection = create_connection_by_uri(db_uri)
+    let db_connection = create_connection_by_uri(&db_uri)
         .await
-        .unwrap_or_else(|_| panic!("Unable to connect to database: {}", db_uri));
+        .unwrap_or_else(|err| panic!("Unable to connect to database: {} - {err}", db_uri));
 
     let cors = warp::cors()
         .allow_any_origin()

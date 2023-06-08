@@ -29,3 +29,4 @@ url = "2.3"
 uuid = { version = "1.3.1", default-features = false, features = ["serde", "v5"] }
 
 api = { path = "../../lib/api" }
+worker = { path = "../../lib/worker" }

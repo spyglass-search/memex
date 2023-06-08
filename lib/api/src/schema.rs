@@ -11,3 +11,29 @@ pub struct ErrorMessage {
 pub struct InsertDocumentRequest {
     pub content: String,
 }
+
+#[derive(Deserialize, Default)]
+pub struct SearchDocsRequest {
+    pub query: String,
+    #[serde(default = "SearchDocsRequest::default_limit")]
+    pub limit: u64,
+}
+
+impl SearchDocsRequest {
+    fn default_limit() -> u64 {
+        10
+    }
+}
+
+#[derive(Serialize)]
+pub struct Document {
+    pub id: String,
+    pub segment_id: String,
+    pub content: String,
+    pub score: f32,
+}
+
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub results: Vec<Document>,
+}

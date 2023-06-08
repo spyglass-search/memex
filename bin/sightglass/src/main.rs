@@ -1,5 +1,3 @@
-use dotenv_codegen::dotenv;
-
 use clap::{Parser, Subcommand};
 use futures::future::join_all;
 use std::{net::Ipv4Addr, process::ExitCode};
@@ -49,7 +47,9 @@ async fn main() -> ExitCode {
             EnvFilter::from_default_env()
                 .add_directive(LOG_LEVEL.into())
                 .add_directive(LIB_LOG_LEVEL.parse().expect("invalid log filter"))
-                .add_directive("warp=INFO".parse().expect("invalid log filter")),
+                .add_directive("api=DEBUG".parse().expect("invalid log filter"))
+                .add_directive("worker=DEBUG".parse().expect("invalid log filter"))
+                .add_directive("embedder=DEBUG".parse().expect("invalid log filter")),
         )
         .with(
             fmt::Layer::new()
@@ -68,7 +68,10 @@ async fn main() -> ExitCode {
         }
 
         log::info!("starting server with roles: {roles:?}");
-        let host = match dotenv!("HOST").parse::<Ipv4Addr>() {
+        let host = match std::env::var("HOST")
+            .expect("HOST not set")
+            .parse::<Ipv4Addr>()
+        {
             Ok(host) => host,
             Err(err) => {
                 log::error!("Invalid HOST string {err}");
@@ -76,7 +79,7 @@ async fn main() -> ExitCode {
             }
         };
 
-        let port = match dotenv!("PORT").parse::<u16>() {
+        let port = match std::env::var("PORT").expect("PORT not set").parse::<u16>() {
             Ok(port) => port,
             Err(err) => {
                 log::error!("Invalid PORT string {err}");
@@ -84,29 +87,17 @@ async fn main() -> ExitCode {
             }
         };
 
-        let db_uri = dotenv!("DATABASE_CONNECTION");
-
+        let db_uri = std::env::var("DATABASE_CONNECTION").expect("DATABASE_CONNECTION not set");
         let mut handles = Vec::new();
-        if roles.contains(&Roles::Api) {
-            let api_rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .thread_name("api-runtime")
-                .build()
-                .expect("Unable to create runtime");
 
-            let handle = api_rt.spawn(api::start(host, port, db_uri));
-            handles.push(handle);
+        if roles.contains(&Roles::Api) {
+            let db_uri = db_uri.clone();
+            handles.push(tokio::spawn(api::start(host, port, db_uri)));
         }
 
         if roles.contains(&Roles::Worker) {
-            let _worker_rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .thread_name("api-runtime")
-                .build()
-                .expect("Unable to create runtime");
-
-            // let handle = worker_rt.spawn(api::start(host, port));
-            // handles.push(handle);
+            let db_uri = db_uri.clone();
+            handles.push(tokio::spawn(worker::start(db_uri)));
         }
 
         let _ = join_all(handles).await;

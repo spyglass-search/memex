@@ -149,6 +149,7 @@ dependencies = [
  "dotenv_codegen",
  "embedder",
  "log",
+ "qdrant-client",
  "rust-bert",
  "sea-orm",
  "serde",
@@ -2667,6 +2668,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+ "worker",
 ]
 
 [[package]]
@@ -3863,8 +3865,10 @@ dependencies = [
  "log",
  "qdrant-client",
  "sea-orm",
+ "serde_json",
  "shared",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

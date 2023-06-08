@@ -1,13 +1,21 @@
 use std::sync::{Arc, Mutex};
 
 use embedder::{ModelConfig, SentenceEmbedder};
+use qdrant_client::prelude::Payload;
+use qdrant_client::qdrant::PointStruct;
 use sea_orm::prelude::*;
+use serde_json::json;
 use shared::db::create_connection_by_uri;
 use shared::db::queue::{self, check_for_jobs, Job};
+use storage::get_or_create_vector_storage;
 use tokio::{
     sync::{broadcast, mpsc},
     time::Duration,
 };
+
+mod storage;
+
+pub const NAMESPACE: uuid::Uuid = uuid::uuid!("5fdfe40a-de2c-11ed-bfa7-00155deae876");
 
 #[derive(Debug, Clone)]
 pub enum AppShutdown {
@@ -40,8 +48,15 @@ impl WorkerInstanceLimits {
 
 pub type WorkerLimitMutex = Arc<Mutex<WorkerInstanceLimits>>;
 
-pub async fn start_worker(db_uri: &str) -> anyhow::Result<()> {
-    let db = create_connection_by_uri(db_uri).await?;
+pub async fn start(db_uri: String) {
+    let db = match create_connection_by_uri(&db_uri).await {
+        Ok(db) => db,
+        Err(err) => {
+            log::error!("Unable to connect to db: {err}");
+            return;
+        }
+    };
+
     let limits = Arc::new(Mutex::new(WorkerInstanceLimits::default()));
 
     // Create channels for scheduler / crawlers
@@ -66,8 +81,22 @@ pub async fn start_worker(db_uri: &str) -> anyhow::Result<()> {
         shutdown_tx.subscribe(),
     ));
 
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+            log::warn!("Shutdown request received");
+            shutdown_tx
+                .send(AppShutdown::Now)
+                .expect("Unable to send AppShutdown cmd");
+        }
+        Err(err) => {
+            log::error!("Unable to listen for shutdown signal: {}", err);
+            shutdown_tx
+                .send(AppShutdown::Now)
+                .expect("Unable to send AppShutdown cmd");
+        }
+    }
+
     let _ = tokio::join!(scheduler, workers);
-    Ok(())
 }
 
 // Simple wrapper to return early if we're already at our processing limit.
@@ -124,7 +153,7 @@ pub async fn run_scheduler(
                 queue_check_interval.tick().await;
             }
             _ = shutdown_rx.recv() => {
-                log::info!("🛑 Shutting down crawl manager");
+                log::info!("🛑 Shutting down scheduler");
                 return;
             }
         }
@@ -138,6 +167,11 @@ pub async fn run_workers(
     mut shutdown_rx: broadcast::Receiver<AppShutdown>,
 ) {
     let model_config = ModelConfig::default();
+
+    // Connect to vector db
+    let collection = std::env::var("QDRANT_COLLECTION").expect("QDRANT_COLLECTION not set");
+    let client = get_or_create_vector_storage(&collection).await;
+
     loop {
         tokio::select! {
             cmd = task_queue.recv() => {
@@ -151,20 +185,48 @@ pub async fn run_workers(
                             };
 
                             {
+                                let client = client.clone();
                                 let limits = limits.clone();
                                 let db = db.clone();
+                                log::info!("[job={}] spawning task", task.task_id);
                                 tokio::spawn(async move {
+                                    let start = std::time::Instant::now();
                                     let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
+                                    log::info!("[job={}] generating embeddings", task.task_id);
                                     match embedder.encode(task.payload.content).await {
                                         Ok(embeddings) => {
-                                            log::info!("created {} embeddings", embeddings.len());
+                                            log::info!("[job={}] created {} embeddings in {}ms", task.task_id, embeddings.len(), start.elapsed().as_millis());
+
+                                            // Add points
+                                            let points = embeddings.iter()
+                                                .enumerate()
+                                                .map(|(idx, embedding)| {
+                                                    let id = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.task_id).as_bytes()).to_string();
+                                                    // Keep track of original task id
+                                                    let payload: Payload = json!({
+                                                        "task_id": task.task_id,
+                                                        "segment_id": idx,
+                                                        "content": embedding.content
+                                                    })
+                                                        .try_into()
+                                                        .unwrap();
+
+                                                    PointStruct::new(id, embedding.vector.clone(), payload)
+                                                }).collect::<Vec<PointStruct>>();
+
+                                            if let Err(err) = client.add_vectors(points).await {
+                                                log::error!("[job={}] Unable to upsert points: {err}", task.task_id);
+                                            } else {
+                                                log::info!("[job={}] Persisted embeddings", task.task_id);
+                                            }
                                         }
                                         Err(err) => {
-                                            log::error!("Unable to encode job.id={} - {err}", task.id);
+                                            log::error!("[job={}] Unable to encode: {err}", task.task_id);
                                         }
                                     }
 
                                     let _ = queue::mark_done(&db, task.id).await;
+                                    log::info!("[job={}] job finished in {}ms", task.task_id, start.elapsed().as_millis());
 
                                     if let Ok(mut limits) = limits.lock() {
                                         limits.num_active -= 1;

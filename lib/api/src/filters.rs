@@ -1,10 +1,9 @@
 use sea_orm::DatabaseConnection;
 use serde::de::DeserializeOwned;
-use uuid::Uuid;
 use warp::Filter;
 
-use crate::{schema::InsertDocumentRequest, with_db, ServerError};
-use embedder::{ModelConfig, SentenceEmbedder};
+use crate::handlers;
+use crate::{schema, with_db};
 
 const LIMIT_1_MB: u64 = 1000 * 1024;
 const LIMIT_10_MB: u64 = 10 * LIMIT_1_MB;
@@ -18,36 +17,25 @@ pub fn json_body<T: std::marker::Send + DeserializeOwned>(
 pub fn add_document(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("collection")
+    warp::path!("docs")
         .and(warp::post())
-        .and(json_body::<InsertDocumentRequest>(LIMIT_10_MB))
+        .and(json_body::<schema::InsertDocumentRequest>(LIMIT_10_MB))
         .and(with_db(db.clone()))
-        .and_then(handle_add_document)
+        .and_then(handlers::handle_add_document)
 }
 
-async fn handle_add_document(
-    req: InsertDocumentRequest,
-    _db: DatabaseConnection,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let model_config = ModelConfig::default();
-    let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
-
-    let embeddings = match embedder.encode(req.content).await {
-        Ok(res) => res,
-        Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
-    };
-
-    for embedding in embeddings {
-        println!("embedding: {}", embedding.content);
-    }
-
-    // Create an UUID for this document & add to queue
-    let doc_id = Uuid::new_v4();
-    Ok(warp::reply::json(&serde_json::json!({ "id": doc_id })))
+pub fn search_docs(
+    db: &DatabaseConnection,
+) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("docs" / "search")
+        .and(warp::get())
+        .and(json_body::<schema::SearchDocsRequest>(LIMIT_1_MB))
+        .and(with_db(db.clone()))
+        .and_then(handlers::handle_search_docs)
 }
 
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    add_document(db)
+    add_document(db).or(search_docs(db))
 }
