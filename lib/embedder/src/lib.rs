@@ -180,7 +180,7 @@ pub fn segment_text(model_config: &ModelConfig, text: &str) -> Result<Vec<String
 
     let encoding = tokenizer.encode(text, false).unwrap();
     let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
-        Ok(decoded) => decoded,
+        Ok(decoded) => decoded.replace(" ' ", "'"),
         Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
     };
 
