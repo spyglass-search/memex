@@ -11,6 +11,7 @@ use shared::{
 use uuid::Uuid;
 
 pub async fn handle_add_document(
+    cname: String,
     req: schema::InsertDocumentRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
@@ -22,11 +23,12 @@ pub async fn handle_add_document(
 
     // Create an UUID for this document & add to queue
     Ok(warp::reply::json(
-        &serde_json::json!({ "id": job_id, "status": "Queued" }),
+        &serde_json::json!({ "id": job_id, "status": "Queued", "collection": cname }),
     ))
 }
 
 pub async fn handle_search_docs(
+    cname: String,
     req: schema::SearchDocsRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {

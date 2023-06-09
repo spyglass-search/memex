@@ -34,6 +34,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub task_id: String,
+    pub collection: String,
     pub payload: TaskPayload,
     /// Task status.
     pub status: JobStatus,
