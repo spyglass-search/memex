@@ -1,4 +1,8 @@
 FROM rust:1.68 as builder
+
+ARG GIT_HASH=unknown
+ENV GIT_HASH=$GIT_HASH
+
 RUN apt update -y && apt upgrade -y
 # cmake/clang required for llama-rs/whisper-rs builds
 RUN apt-get install -y cmake clang

@@ -11,4 +11,7 @@ clippy: fmt
 	cargo clippy --all
 
 docker-build:
-	docker build -f Dockerfile -t spyglass-search/memex:latest .
+	docker build \
+		--build-arg GIT_HASH=$(git rev-parse --short HEAD) \
+		-f Dockerfile \
+		-t spyglass-search/memex:latest .
