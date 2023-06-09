@@ -33,7 +33,6 @@ pub struct TaskError {
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    pub task_id: String,
     pub collection: String,
     pub payload: TaskPayload,
     /// Task status.
@@ -111,12 +110,12 @@ pub async fn mark_failed(db: &DatabaseConnection, id: i64, retry: bool, error: O
     }
 }
 
-pub async fn enqueue<C>(db: &C, job_id: &str, content: &str) -> Result<Model, DbErr>
+pub async fn enqueue<C>(db: &C, collection: &str, content: &str) -> Result<Model, DbErr>
 where
     C: ConnectionTrait,
 {
     let mut new = ActiveModel::new();
-    new.task_id = Set(job_id.to_string());
+    new.collection = Set(collection.to_string());
     new.payload = Set(TaskPayload {
         content: content.to_string(),
     });

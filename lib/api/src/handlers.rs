@@ -8,34 +8,31 @@ use shared::{
     db::{document, queue},
     vector::get_vector_storage,
 };
-use uuid::Uuid;
 
 pub async fn handle_add_document(
-    cname: String,
+    collection: String,
     req: schema::InsertDocumentRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     // Add to job queue
-    let job_id = Uuid::new_v4().to_string();
-    if let Err(err) = queue::enqueue(&db, &job_id, &req.content).await {
-        return Err(warp::reject::custom(ServerError::Other(err.to_string())));
-    }
+    let task = match queue::enqueue(&db, &collection, &req.content).await {
+        Ok(model) => model,
+        Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
+    };
 
     // Create an UUID for this document & add to queue
-    Ok(warp::reply::json(
-        &serde_json::json!({ "id": job_id, "status": "Queued", "collection": cname }),
-    ))
+    Ok(warp::reply::json(&schema::TaskResult::from(task)))
 }
 
 pub async fn handle_search_docs(
-    cname: String,
+    collection: String,
     req: schema::SearchDocsRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let (_handle, embedder) = SentenceEmbedder::spawn(&ModelConfig::default());
 
     let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
-    let client = match get_vector_storage(&vector_uri).await {
+    let client = match get_vector_storage(&vector_uri, &collection).await {
         Ok(client) => client,
         Err(err) => {
             return Err(warp::reject::custom(ServerError::Other(format!(

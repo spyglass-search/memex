@@ -163,15 +163,6 @@ pub async fn run_workers(
     mut task_queue: mpsc::Receiver<WorkerCommand>,
     mut shutdown_rx: broadcast::Receiver<AppShutdown>,
 ) {
-    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
-    let client = match get_vector_storage(&vector_uri).await {
-        Ok(client) => client,
-        Err(err) => {
-            log::error!("Unable to connect to vector db: {err}");
-            return;
-        }
-    };
-
     loop {
         tokio::select! {
             cmd = task_queue.recv() => {
@@ -185,13 +176,21 @@ pub async fn run_workers(
                             };
 
                             {
-                                let client = client.clone();
                                 let limits = limits.clone();
                                 let db = db.clone();
-                                log::info!("[job={}] spawning task", task.task_id);
+                                log::info!("[job={}] spawning task", task.id);
                                 tokio::spawn(async move {
+                                    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
+                                    let client = match get_vector_storage(&vector_uri, &task.collection).await {
+                                        Ok(client) => client,
+                                        Err(err) => {
+                                            log::error!("Unable to connect to vector db: {err}");
+                                            return;
+                                        }
+                                    };
+
                                     if let Err(err) = _process_embeddings(db, client, task.clone()).await {
-                                        log::error!("[job={}] Unable to process embeddings: {err}", task.task_id);
+                                        log::error!("[job={}] Unable to process embeddings: {err}", task.id);
                                     }
 
                                     if let Ok(mut limits) = limits.lock() {
@@ -221,11 +220,11 @@ async fn _process_embeddings(
     let model_config = ModelConfig::default();
 
     let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
-    log::info!("[job={}] generating embeddings", task.task_id);
+    log::info!("[job={}] generating embeddings", task.id);
     let embeddings = embedder.encode(task.payload.content).await?;
     log::info!(
         "[job={}] created {} embeddings in {}ms",
-        task.task_id,
+        task.id,
         embeddings.len(),
         start.elapsed().as_millis()
     );
@@ -234,11 +233,11 @@ async fn _process_embeddings(
     // Persist vectors to db & vector store
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
-        let doc_id = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.task_id).as_bytes())
-            .to_string();
+        let doc_id =
+            uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.id).as_bytes()).to_string();
 
         let mut new_doc = document::ActiveModel::new();
-        new_doc.task_id = Set(task.task_id.to_string());
+        new_doc.task_id = Set(task.id.to_string());
         new_doc.document_id = Set(doc_id.clone());
         new_doc.segment = Set(idx as i64);
         new_doc.content = Set(embedding.content.clone());
@@ -251,15 +250,15 @@ async fn _process_embeddings(
     }
 
     if let Err(err) = client.add_vectors(vectors).await {
-        log::error!("[job={}] Unable to upsert points: {err}", task.task_id);
+        log::error!("[job={}] Unable to upsert points: {err}", task.id);
     } else {
-        log::info!("[job={}] Persisted embeddings", task.task_id);
+        log::info!("[job={}] Persisted embeddings", task.id);
     }
     txn.commit().await?;
     let _ = queue::mark_done(&db, task.id).await;
     log::info!(
         "[job={}] job finished in {}ms",
-        task.task_id,
+        task.id,
         start.elapsed().as_millis()
     );
 
