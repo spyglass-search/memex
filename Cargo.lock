@@ -1235,9 +1235,8 @@ dependencies = [
 
 [[package]]
 name = "hnsw_rs"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0308727459701f2fa18286e50662c37044e130e955bfd42b6ff30260116b2a5"
+version = "0.1.20"
+source = "git+https://github.com/jean-pierreBoth/hnswlib-rs?rev=52a7f9174e002820d168fa65ca7303364ee3ac33#52a7f9174e002820d168fa65ca7303364ee3ac33"
 dependencies = [
  "bincode",
  "cpu-time",
