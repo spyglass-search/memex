@@ -25,7 +25,10 @@ since Linux ARM builds are very finicky.
     -H "Content-Type: application/json" \
     --request POST \
     --data @example_docs/state_of_the_union_2023.json
+{ "id": ..., "status": "Queued" }
 ```
+
+Wait a couple seconds for the document to be processed and then...
 
 ## Run a query
 
@@ -34,4 +37,12 @@ since Linux ARM builds are very finicky.
     -H "Content-Type: application/json" \
     --request GET \
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
+[{
+    "id": <internal_document_id>,
+    "segment": <document section>,
+    "content": <content block>,
+    "score": <relevancy score>
+}, ...]
 ```
+
+You'll
