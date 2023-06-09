@@ -123,17 +123,18 @@ impl HnswStore {
 
 #[cfg(test)]
 mod test {
+    use std::path::Path;
     use super::{HnswStore, VectorStore};
 
     #[test]
     fn test_hnsw() {
-        let path = "/tmp".into();
+        let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
         store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
         store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
 
-        let results = store.search(&vec![0.1, 0.1, 0.1]).unwrap();
+        let results = store.search(&vec![0.1, 0.1, 0.1], 3).unwrap();
         assert_eq!(results.len(), 3);
 
         // First result should be "test-two"
@@ -143,7 +144,7 @@ mod test {
 
     #[test]
     fn test_save_load() {
-        let path = "/tmp".into();
+        let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
         store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
