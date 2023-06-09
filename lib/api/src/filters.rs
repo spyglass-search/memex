@@ -34,8 +34,17 @@ pub fn search_docs(
         .and_then(handlers::handle_search_docs)
 }
 
+pub fn check_task(
+    db: &DatabaseConnection,
+) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("tasks" / i64)
+        .and(warp::get())
+        .and(with_db(db.clone()))
+        .and_then(handlers::handle_check_task)
+}
+
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    add_document(db).or(search_docs(db))
+    add_document(db).or(search_docs(db)).or(check_task(db))
 }

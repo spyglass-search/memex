@@ -1,5 +1,5 @@
 use crate::{
-    schema::{self, Document},
+    schema::{self, Document, TaskResult},
     ServerError,
 };
 use embedder::{ModelConfig, SentenceEmbedder};
@@ -17,7 +17,7 @@ pub async fn handle_add_document(
     // Add to job queue
     let task = match queue::enqueue(&db, &collection, &req.content).await {
         Ok(model) => model,
-        Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
+        Err(err) => return Err(warp::reject::custom(ServerError::DatabaseError(err))),
     };
 
     // Create an UUID for this document & add to queue
@@ -74,4 +74,19 @@ pub async fn handle_search_docs(
 
     let result = schema::SearchResult { results };
     Ok(warp::reply::json(&result))
+}
+
+pub async fn handle_check_task(
+    task_id: i64,
+    db: DatabaseConnection,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let result = match queue::Entity::find_by_id(task_id).one(&db).await {
+        Ok(res) => res,
+        Err(err) => return Err(warp::reject::custom(ServerError::DatabaseError(err))),
+    };
+
+    match result {
+        Some(result) => Ok(warp::reply::json(&TaskResult::from(result))),
+        None => Err(warp::reject::not_found()),
+    }
 }
