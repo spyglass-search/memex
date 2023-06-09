@@ -1,6 +1,6 @@
 # memex
 
-Dead-simple "memory" for LLM projects, semantic search, etc.
+Super simple "memory" for LLM projects, semantic search, etc.
 
 ## Running
 
@@ -11,7 +11,7 @@ since Linux ARM builds are very finicky.
 # Build and run the docker image
 > docker compose up
 # OR run natively in you have the rust toolchain installed.
-> cargo run --release -p sightglass
+> cargo run --release -p memex
 ```
 
 ## Add a document

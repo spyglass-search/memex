@@ -1629,6 +1629,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
+name = "memex"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "clap",
+ "dotenv",
+ "dotenv_codegen",
+ "futures",
+ "log",
+ "serde",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "tiktoken-rs",
+ "tokio",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+ "worker",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2780,35 +2809,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "sightglass"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "api",
- "async-trait",
- "bytes",
- "chrono",
- "clap",
- "dotenv",
- "dotenv_codegen",
- "futures",
- "log",
- "serde",
- "serde_json",
- "strum",
- "strum_macros",
- "thiserror",
- "tiktoken-rs",
- "tokio",
- "tracing",
- "tracing-log",
- "tracing-subscriber",
- "url",
- "uuid",
- "worker",
 ]
 
 [[package]]

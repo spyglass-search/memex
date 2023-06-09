@@ -7,7 +7,7 @@ WORKDIR /usr/src
 COPY . .
 # Required for whisper-rs
 RUN rustup component add rustfmt
-RUN cargo build -p sightglass --release
+RUN cargo build -p memex --release
 
 FROM debian:stable-slim
 
@@ -18,5 +18,5 @@ RUN apt update \
     && apt clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY --from=builder /usr/src/target/release/sightglass ./
-ENTRYPOINT [ "./sightglass" ]
+COPY --from=builder /usr/src/target/release/memex ./
+ENTRYPOINT [ "./memex" ]

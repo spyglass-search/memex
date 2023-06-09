@@ -12,9 +12,9 @@ use tracing_subscriber::{
 const LOG_LEVEL: tracing::Level = tracing::Level::INFO;
 
 #[cfg(debug_assertions)]
-const LIB_LOG_LEVEL: &str = "sightglass=DEBUG";
+const LIB_LOG_LEVEL: &str = "memex=DEBUG";
 #[cfg(not(debug_assertions))]
-const LIB_LOG_LEVEL: &str = "sightglass=INFO";
+const LIB_LOG_LEVEL: &str = "memex=INFO";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
