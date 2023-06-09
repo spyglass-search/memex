@@ -15,6 +15,7 @@ since Linux ARM builds are very finicky.
 # Build and run the docker image
 > docker compose up
 # OR run natively in you have the rust toolchain installed.
+> cp .env.template .env
 > cargo run --release -p memex
 ```
 
