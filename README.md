@@ -2,7 +2,11 @@
 
 Super simple "memory" for LLM projects, semantic search, etc.
 
-## Running
+<p style="text-align: center">
+    <img src="docs/memex-in-action.gif">
+</p>
+
+## Running the service
 
 Note that if you're running on Apple silicon (M1/M2/etc.), it's best to run natively (and faster)
 since Linux ARM builds are very finicky.
@@ -17,7 +21,6 @@ since Linux ARM builds are very finicky.
 ## Add a document
 
 ``` bash
-# Add a doc.
 > curl http://localhost:8080/docs \
     -H "Content-Type: application/json" \
     --request POST \
