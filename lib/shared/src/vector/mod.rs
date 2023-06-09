@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use url::Url;
@@ -32,7 +32,11 @@ pub type VectorSearchResult = (String, f32);
 
 pub trait VectorStore {
     fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError>;
-    fn search(&self, vec: &[f32]) -> Result<Vec<VectorSearchResult>, VectorStoreError>;
+    fn search(
+        &self,
+        vec: &[f32],
+        limit: usize,
+    ) -> Result<Vec<VectorSearchResult>, VectorStoreError>;
 }
 
 #[derive(Clone)]
@@ -52,9 +56,13 @@ impl VectorStorage {
         Ok(())
     }
 
-    pub async fn search(&self, query: &[f32]) -> Result<Vec<VectorSearchResult>, VectorStoreError> {
+    pub async fn search(
+        &self,
+        query: &[f32],
+        limit: usize,
+    ) -> Result<Vec<VectorSearchResult>, VectorStoreError> {
         let client = self.client.lock().await;
-        client.search(query)
+        client.search(query, limit)
     }
 }
 
@@ -68,8 +76,12 @@ pub async fn get_vector_storage(uri: &str) -> Result<VectorStorage, VectorStoreE
 
     // Only support one right now
     let client = if scheme == "hnsw" {
-        let storage: String = uri.strip_prefix("hnsw://").unwrap_or_default().into();
-        HnswStore::new(storage.into())
+        let storage: PathBuf = uri.strip_prefix("hnsw://").unwrap_or_default().into();
+        if HnswStore::has_store(&storage) {
+            HnswStore::load(&storage)?
+        } else {
+            HnswStore::new(&storage)
+        }
     } else {
         return Err(VectorStoreError::Unsupported(uri.to_string()));
     };

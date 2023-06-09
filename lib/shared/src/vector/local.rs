@@ -6,7 +6,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufReader, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -33,8 +33,8 @@ impl VectorStore for HnswStore {
         Ok(())
     }
 
-    fn search(&self, vec: &[f32]) -> Result<Vec<(String, f32)>, VectorStoreError> {
-        let neighbors = self.hnsw.search(vec, 10, 16 * 2);
+    fn search(&self, vec: &[f32], limit: usize) -> Result<Vec<(String, f32)>, VectorStoreError> {
+        let neighbors = self.hnsw.search(vec, limit, 16 * 2);
 
         let mut results = Vec::new();
         for x in neighbors.iter() {
@@ -53,18 +53,28 @@ impl VectorStore for HnswStore {
 }
 
 impl HnswStore {
-    pub fn new(storage_path: PathBuf) -> Self {
-        log::info!("Initializing vector storage @ {}", storage_path.display());
+    pub fn new(storage_path: &Path) -> Self {
+        log::info!(
+            "Initializing vector storage @ \"{}\"",
+            storage_path.display()
+        );
         let store = Hnsw::new(16, 100, 16, 200, DistCosine);
 
         Self {
-            storage_path,
+            storage_path: storage_path.to_path_buf(),
             hnsw: Arc::new(store),
             _id_map: HashMap::new(),
         }
     }
 
-    pub fn load(store_path: PathBuf) -> Result<Self, VectorStoreError> {
+    pub fn has_store(store_path: &Path) -> bool {
+        let meta_path = store_path.join(META_FILE);
+        meta_path.exists()
+    }
+
+    pub fn load(store_path: &Path) -> Result<Self, VectorStoreError> {
+        log::info!("Loading vector storage @ \"{}\"", store_path.display());
+
         let graph_path = store_path.join(GRAPH_FILE);
         let graph_fhand = File::open(graph_path)?;
 
@@ -84,7 +94,7 @@ impl HnswStore {
         let _id_map: HashMap<usize, String> = serde_json::from_reader(meta_reader)?;
 
         Ok(Self {
-            storage_path: store_path,
+            storage_path: store_path.to_path_buf(),
             hnsw: Arc::new(hnsw_loaded),
             _id_map,
         })
@@ -117,7 +127,8 @@ mod test {
 
     #[test]
     fn test_hnsw() {
-        let mut store = HnswStore::new();
+        let path = "/tmp".into();
+        let mut store = HnswStore::new(&path);
         store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
         store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
         store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
@@ -132,14 +143,15 @@ mod test {
 
     #[test]
     fn test_save_load() {
-        let mut store = HnswStore::new();
+        let path = "/tmp".into();
+        let mut store = HnswStore::new(&path);
         store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
         store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
         store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
 
-        let loaded = HnswStore::load("/tmp".into()).unwrap();
+        let loaded = HnswStore::load(&path).unwrap();
         assert_eq!(loaded._id_map.len(), store._id_map.len());
     }
 }

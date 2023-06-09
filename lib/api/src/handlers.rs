@@ -51,7 +51,7 @@ pub async fn handle_search_docs(
         }
     };
 
-    let search_result = match client.search(&vector.vector).await {
+    let search_result = match client.search(&vector.vector, req.limit as usize).await {
         Ok(result) => result,
         Err(err) => return Err(warp::reject::custom(ServerError::Other(err.to_string()))),
     };
