@@ -2,7 +2,7 @@
 
 Super simple "memory" for LLM projects, semantic search, etc.
 
-<p style="text-align: center">
+<p align="center">
     <img src="docs/memex-in-action.gif">
 </p>
 
