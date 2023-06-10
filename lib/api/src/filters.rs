@@ -17,7 +17,7 @@ pub fn json_body<T: std::marker::Send + DeserializeOwned>(
 pub fn add_document(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("docs")
+    warp::path!("collections" / String)
         .and(warp::post())
         .and(json_body::<schema::InsertDocumentRequest>(LIMIT_10_MB))
         .and(with_db(db.clone()))
@@ -27,15 +27,24 @@ pub fn add_document(
 pub fn search_docs(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("docs" / "search")
+    warp::path!("collections" / String / "search")
         .and(warp::get())
         .and(json_body::<schema::SearchDocsRequest>(LIMIT_1_MB))
         .and(with_db(db.clone()))
         .and_then(handlers::handle_search_docs)
 }
 
+pub fn check_task(
+    db: &DatabaseConnection,
+) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("tasks" / i64)
+        .and(warp::get())
+        .and(with_db(db.clone()))
+        .and_then(handlers::handle_check_task)
+}
+
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    add_document(db).or(search_docs(db))
+    add_document(db).or(search_docs(db)).or(check_task(db))
 }

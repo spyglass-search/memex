@@ -58,6 +58,7 @@ impl HnswStore {
             "Initializing vector storage @ \"{}\"",
             storage_path.display()
         );
+
         let store = Hnsw::new(16, 100, 16, 200, DistCosine);
 
         Self {
@@ -123,8 +124,8 @@ impl HnswStore {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
     use super::{HnswStore, VectorStore};
+    use std::path::Path;
 
     #[test]
     fn test_hnsw() {

@@ -66,7 +66,10 @@ impl VectorStorage {
     }
 }
 
-pub async fn get_vector_storage(uri: &str) -> Result<VectorStorage, VectorStoreError> {
+pub async fn get_vector_storage(
+    uri: &str,
+    collection: &str,
+) -> Result<VectorStorage, VectorStoreError> {
     let parsed_uri = match Url::parse(uri) {
         Ok(uri) => uri,
         Err(_) => return Err(VectorStoreError::Unsupported(uri.to_string())),
@@ -77,6 +80,12 @@ pub async fn get_vector_storage(uri: &str) -> Result<VectorStorage, VectorStoreE
     // Only support one right now
     let client = if scheme == "hnsw" {
         let storage: PathBuf = uri.strip_prefix("hnsw://").unwrap_or_default().into();
+        // Collections are stored as folders
+        let storage = storage.join(collection);
+        if !storage.exists() {
+            std::fs::create_dir_all(storage.clone())?;
+        }
+
         if HnswStore::has_store(&storage) {
             HnswStore::load(&storage)?
         } else {

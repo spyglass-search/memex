@@ -22,21 +22,42 @@ since Linux ARM builds are very finicky.
 ## Add a document
 
 ``` bash
-> curl http://localhost:8080/docs \
+> curl http://localhost:8181/collections/test \
     -H "Content-Type: application/json" \
-    --request POST \
     --data @example_docs/state_of_the_union_2023.json
-{ "id": ..., "status": "Queued" }
+{
+    "task_id": 1,
+    "collection": "test",
+    "status": "Queued",
+    ...
+}
 ```
 
-Wait a couple seconds for the document to be processed and then...
+Feel free to add as many documents as you want. Each one will be enqueued and processed
+as they are added.
+
+Wait a couple seconds per document to be processed. You can check the status
+using the `task_id` above like so:
+
+## Check task status
+
+``` bash
+> curl http://localhost:8181/tasks/1
+{
+    "task_id": 1,
+    "status": "Processing"
+}
+```
+
+One the task is shown as "Completed", you can now run a query against the doc(s)
+you've just added.
 
 ## Run a query
 
 ``` bash
-> curl http://localhost:8080/docs/search \
+> curl http://localhost:8181/collections/test/search \
     -H "Content-Type: application/json" \
-    --request GET \
+    -X GET \
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
 [{
     "id": <internal_document_id>,
