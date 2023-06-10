@@ -1,7 +1,9 @@
-use std::{fs::File, io::Read, path::PathBuf, process::ExitCode};
-
+use chrono::Utc;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
+use std::{fs::File, io::Read, path::PathBuf, process::ExitCode};
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Subcommand, PartialEq)]
 enum Command {
@@ -27,6 +29,27 @@ pub struct Args {
     memex_uri: String,
     #[command(subcommand)]
     command: Command,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskResult {
+    task_id: i64,
+    collection: String,
+    status: String,
+    created_at: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Document {
+    pub id: String,
+    pub segment: i64,
+    pub content: String,
+    pub score: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResults {
+    pub results: Vec<Document>
 }
 
 fn elog(msg: String) {
@@ -75,6 +98,21 @@ async fn main() -> ExitCode {
                 .expect("Unable to read file");
 
             // Post to memex
+            let result = match client
+                .post(format!("{}/collections/clippy", args.memex_uri))
+                .json(&serde_json::json!({ "content": file_data }))
+                .send()
+                .await
+            {
+                Ok(res) => res,
+                Err(err) => {
+                    elog(format!("Unable to add file: {err}"));
+                    return ExitCode::FAILURE;
+                }
+            };
+
+            let resp = result.json::<TaskResult>().await.expect("Unable to parse response");
+            println!("✅ added document (task_id: {})", resp.task_id);
         }
         Command::Forget => {
             println!("Erasing clippy's memory.");

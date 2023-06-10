@@ -8,6 +8,7 @@ members = [
     "lib/shared",
     "lib/worker"
 ]
+exclude = [ "examples/clippy"]
 
 [workspace.dependencies]
 anyhow = "1.0"
