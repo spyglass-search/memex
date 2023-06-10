@@ -10,7 +10,6 @@ chrono = { workspace = true }
 dotenv = { workspace = true }
 dotenv_codegen = { workspace = true }
 log = { workspace = true }
-rust-bert = { version = "0.21.0", features = ["download-libtorch"] }
 sea-orm = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

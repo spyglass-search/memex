@@ -15,8 +15,6 @@ use schema::ErrorMessage;
 pub enum ServerError {
     #[error("Database error: {0}")]
     DatabaseError(#[from] sea_orm::DbErr),
-    #[error("Model error: {0}")]
-    ModelError(#[from] rust_bert::RustBertError),
     #[error("Server error: {0}")]
     Other(String),
 }

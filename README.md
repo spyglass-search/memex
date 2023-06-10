@@ -67,4 +67,24 @@ you've just added.
 }, ...]
 ```
 
-You'll
+## Env variables
+
+- `HOST` & `PORT`:
+
+## Examples
+
+For any of these examples, make sure you have `memex` running in the background.
+
+### Clippy
+
+#### Ask questions about a single or many document(s)
+
+``` bash
+# In a different terminal, run memex
+> cargo run --release -p memex
+# In your main terminal
+> cargo run --example clippy -- load-file example_docs/state_of_the_union.txt
+> cargo run --example clippy -- ask "what does biden say about taxes?"
+```
+
+Given this context
