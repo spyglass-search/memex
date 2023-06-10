@@ -83,7 +83,25 @@ async fn main() -> ExitCode {
 
     match args.command {
         Command::Ask { question } => {
-            println!("asking clippy: {question}");
+            let pb = ProgressBar::new_spinner();
+            pb.enable_steady_tick(std::time::Duration::from_millis(120));
+            pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
+            pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
+            pb.set_message("Rummaging through clippy's memex...");
+
+            let results = client.get(format!("{}/collections/clippy/search", args.memex_uri))
+                .json(&serde_json::json!({ "query": question, "limit": 5 }))
+                .send()
+                .await.expect("Unable to connect to memex")
+                .json::<SearchResults>()
+                .await.expect("Unable to parse response");
+
+            pb.set_message("Loading LLM...");
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            pb.set_message("Asking Clippy...");
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            dbg!(results);
+            pb.finish_and_clear();
         }
         Command::LoadFile { file } => {
             if !file.exists() || !file.is_file() {
