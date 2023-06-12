@@ -1,9 +1,12 @@
 use chrono::Utc;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Read, path::PathBuf, process::ExitCode};
 use indicatif::{ProgressBar, ProgressStyle};
+use serde::{Deserialize, Serialize};
+use std::{fs::File, io::{Read, Write}, path::PathBuf, process::ExitCode};
+use tokio::sync::mpsc;
+
+use libclippy::{prompt_llm, LlmEvent};
 
 #[derive(Subcommand, PartialEq)]
 enum Command {
@@ -49,7 +52,7 @@ pub struct Document {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResults {
-    pub results: Vec<Document>
+    pub results: Vec<Document>,
 }
 
 fn elog(msg: String) {
@@ -89,18 +92,42 @@ async fn main() -> ExitCode {
             pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
             pb.set_message("Rummaging through clippy's memex...");
 
-            let results = client.get(format!("{}/collections/clippy/search", args.memex_uri))
+            let _results = client
+                .get(format!("{}/collections/clippy/search", args.memex_uri))
                 .json(&serde_json::json!({ "query": question, "limit": 5 }))
                 .send()
-                .await.expect("Unable to connect to memex")
+                .await
+                .expect("Unable to connect to memex")
                 .json::<SearchResults>()
-                .await.expect("Unable to parse response");
+                .await
+                .expect("Unable to parse response");
 
-            pb.set_message("Loading LLM...");
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            pb.set_message("Asking Clippy...");
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-            dbg!(results);
+            // Create a channel to to receive events
+            let (sender, mut receiver) = mpsc::unbounded_channel::<LlmEvent>();
+            let pb_clone = pb.clone();
+            tokio::spawn(async move {
+                let mut first_token = true;
+                while let Some(event) = receiver.recv().await {
+                    match &event {
+                        LlmEvent::TokenReceived(token) => {
+                            if first_token {
+                                pb_clone.finish_and_clear();
+                                first_token = false;
+                            }
+                            print!("{}", token);
+                            std::io::stdout().flush().unwrap();
+                        },
+                        LlmEvent::InferenceDone => {
+                            println!("\n📎\n");
+                            std::io::stdout().flush().unwrap();
+                            return;
+                        },
+                        _ => {}
+                    }
+                }
+            });
+
+            prompt_llm(&pb, &question, sender).await;
             pb.finish_and_clear();
         }
         Command::LoadFile { file } => {
@@ -129,7 +156,10 @@ async fn main() -> ExitCode {
                 }
             };
 
-            let resp = result.json::<TaskResult>().await.expect("Unable to parse response");
+            let resp = result
+                .json::<TaskResult>()
+                .await
+                .expect("Unable to parse response");
             println!("✅ added document (task_id: {})", resp.task_id);
         }
         Command::Forget => {
