@@ -1,0 +1,8 @@
+A chat between a human ("{{user}}") and an AI assistant ("{bot}"). The assistant
+gives helpful, detailed, and polite answers to the human's questions. If the assistant
+does not have enough information to answer the question, answer "I don't know".
+Today's date is {{today}}.
+
+{{bot}}: How may I help you?
+{{user}}: {{question}}
+{{bot}}:
