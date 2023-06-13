@@ -31,6 +31,11 @@ pub enum VectorStoreError {
 pub type VectorSearchResult = (String, f32);
 
 pub trait VectorStore {
+    /// Delete a single document from the vector store.
+    fn delete(&mut self, doc_id: &str) -> Result<(), VectorStoreError>;
+    /// Delete ALL documents from the vector store.
+    fn delete_all(&mut self) -> Result<(), VectorStoreError>;
+
     fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError>;
     fn search(
         &self,
