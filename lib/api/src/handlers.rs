@@ -4,7 +4,7 @@ use crate::{
 };
 use embedder::{ModelConfig, SentenceEmbedder};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
-use shared::{
+use libmemex::{
     db::{document, queue},
     vector::get_vector_storage,
 };

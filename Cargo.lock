@@ -155,12 +155,12 @@ dependencies = [
  "dotenv",
  "dotenv_codegen",
  "embedder",
+ "libmemex",
  "log",
  "qdrant-client",
  "sea-orm",
  "serde",
  "serde_json",
- "shared",
  "thiserror",
  "tokio",
  "uuid",
@@ -1709,6 +1709,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 
 [[package]]
+name = "libmemex"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hnsw_rs",
+ "log",
+ "qdrant-client",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "libsqlite3-sys"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3195,22 +3211,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hnsw_rs",
- "log",
- "qdrant-client",
- "sea-orm",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4589,10 +4589,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "embedder",
+ "libmemex",
  "log",
  "sea-orm",
  "serde_json",
- "shared",
  "tokio",
  "url",
  "uuid",

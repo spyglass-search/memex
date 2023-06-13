@@ -17,7 +17,9 @@ since Linux ARM builds are very finicky.
 # OR run natively in you have the rust toolchain installed.
 > cp .env.template .env
 > cargo run --release -p memex serve
-```
+# If everything is running correctly, you should see something like:
+2023-06-13T05:04:21.518732Z  INFO memex: starting server with roles: [Api, Worker]
+``
 
 ## Add a document
 

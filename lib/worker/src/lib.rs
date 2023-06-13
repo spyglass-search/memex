@@ -2,10 +2,10 @@ use embedder::{ModelConfig, SentenceEmbedder};
 use sea_orm::prelude::*;
 use sea_orm::Set;
 use sea_orm::TransactionTrait;
-use shared::db::create_connection_by_uri;
-use shared::db::document;
-use shared::db::queue::{self, check_for_jobs, Job};
-use shared::vector::{get_vector_storage, VectorData, VectorStorage};
+use libmemex::db::create_connection_by_uri;
+use libmemex::db::document;
+use libmemex::db::queue::{self, check_for_jobs, Job};
+use libmemex::vector::{get_vector_storage, VectorData, VectorStorage};
 use std::sync::{Arc, Mutex};
 use tokio::{
     sync::{broadcast, mpsc},

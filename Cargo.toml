@@ -5,7 +5,7 @@ members = [
 
     "lib/api",
     "lib/embedder",
-    "lib/shared",
+    "lib/libmemex",
     "lib/worker",
 
     "examples/clippy"

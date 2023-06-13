@@ -20,4 +20,4 @@ warp = "0.3.3"
 qdrant-client = "1.2.0"
 
 embedder = { path = "../embedder" }
-shared = { path = "../shared" }
+libmemex = { path = "../libmemex" }
