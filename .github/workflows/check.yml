@@ -28,6 +28,8 @@ jobs:
         key: "1" # increment this to bust the cache if needed
     - name: build
       uses: actions-rs/cargo@v1
+      env:
+        GIT_HASH: ${{github.sha}}
       with:
         command: build
     # Run tests
