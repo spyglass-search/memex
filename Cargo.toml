@@ -4,7 +4,6 @@ members = [
     "bin/memex",
 
     "lib/api",
-    "lib/embedder",
     "lib/libmemex",
     "lib/worker",
 

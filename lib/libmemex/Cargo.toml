@@ -6,11 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0"
 chrono = { workspace = true }
 log = { workspace = true }
+rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tokenizers = "0.13.3"
 tokio = { workspace = true }
 thiserror = "1.0"
 hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs", rev = "52a7f9174e002820d168fa65ca7303364ee3ac33" }

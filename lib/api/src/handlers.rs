@@ -2,9 +2,9 @@ use crate::{
     schema::{self, Document, TaskResult},
     ServerError,
 };
-use embedder::{ModelConfig, SentenceEmbedder};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use libmemex::{
+    embedding::{ModelConfig, SentenceEmbedder},
     db::{document, queue},
     vector::get_vector_storage,
 };

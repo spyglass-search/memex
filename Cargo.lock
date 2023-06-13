@@ -154,7 +154,6 @@ dependencies = [
  "chrono",
  "dotenv",
  "dotenv_codegen",
- "embedder",
  "libmemex",
  "log",
  "qdrant-client",
@@ -857,18 +856,6 @@ name = "either"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
-
-[[package]]
-name = "embedder"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "log",
- "rust-bert",
- "thiserror",
- "tokenizers",
- "tokio",
-]
 
 [[package]]
 name = "encode_unicode"
@@ -1712,14 +1699,17 @@ checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 name = "libmemex"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "hnsw_rs",
  "log",
  "qdrant-client",
+ "rust-bert",
  "sea-orm",
  "serde",
  "serde_json",
  "thiserror",
+ "tokenizers",
  "tokio",
  "url",
 ]
@@ -4588,7 +4578,6 @@ name = "worker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "embedder",
  "libmemex",
  "log",
  "sea-orm",
