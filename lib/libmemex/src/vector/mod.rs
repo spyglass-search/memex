@@ -61,6 +61,11 @@ impl VectorStorage {
         Ok(())
     }
 
+    pub async fn delete_collection(&self) -> Result<(), VectorStoreError> {
+        let mut client = self.client.lock().await;
+        client.delete_all()
+    }
+
     pub async fn search(
         &self,
         query: &[f32],

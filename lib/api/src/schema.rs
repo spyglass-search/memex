@@ -1,6 +1,6 @@
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
 use libmemex::db;
+use serde::{Deserialize, Serialize};
 
 /// An API error serializable to JSON.
 #[derive(Serialize)]

@@ -1,12 +1,11 @@
-
-use sea_orm::prelude::*;
-use sea_orm::Set;
-use sea_orm::TransactionTrait;
 use libmemex::db::create_connection_by_uri;
 use libmemex::db::document;
 use libmemex::db::queue::{self, check_for_jobs, Job};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::vector::{get_vector_storage, VectorData, VectorStorage};
+use sea_orm::prelude::*;
+use sea_orm::Set;
+use sea_orm::TransactionTrait;
 use std::sync::{Arc, Mutex};
 use tokio::{
     sync::{broadcast, mpsc},
