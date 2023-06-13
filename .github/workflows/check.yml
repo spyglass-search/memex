@@ -1,0 +1,50 @@
+name: rust check/build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  ARCH: x86_64-unknown-linux-gnu
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checkout source code
+    - uses: actions/checkout@v3
+    # Setup rust toolchain
+    - name: Setup rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+       toolchain: stable
+      # Should help bring down build times
+    - uses: Swatinem/rust-cache@v1
+      with:
+        key: "1" # increment this to bust the cache if needed
+    - name: build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+    # Run tests
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --all
+    # Run clippy
+    - name: Run clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: -- -D warnings
+    # make sure we ran fmt
+    - name: run fmt check
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all --check
