@@ -31,7 +31,7 @@ jobs:
         GIT_HASH: ${{github.sha}}
       run: |
         cp .env.template .env
-        make build
+        make build-all
     # Run tests
     - name: Run tests
       uses: actions-rs/cargo@v1
