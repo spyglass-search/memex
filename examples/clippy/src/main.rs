@@ -175,10 +175,7 @@ async fn handle_ask_cmd(
         Vec::new()
     };
 
-    clippy_say(&format!(
-        "found {} relevant segments",
-        results.len()
-    ));
+    clippy_say(&format!("found {} relevant segments", results.len()));
 
     // Create a channel to to receive events
     let (sender, receiver) = mpsc::unbounded_channel::<LlmEvent>();
