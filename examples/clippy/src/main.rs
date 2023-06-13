@@ -3,23 +3,20 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::PathBuf,
-    process::ExitCode,
-};
+use std::{fs::File, io::Read, path::PathBuf, process::ExitCode};
 use tokio::sync::mpsc;
 
-use libclippy::{ask_clippy, config::ClippyConfig, LlmEvent};
+use libclippy::{ask_clippy, clippy_say, config::ClippyConfig, LlmEvent};
 
 #[derive(Subcommand, PartialEq)]
 enum Command {
-    /// Ask clippy a question.
+    /// Ask clippy a question using it's memory of the documents you've added.
     Ask {
         /// Question you want to ask clippy
         question: String,
     },
+    /// Ask clippy with only knowledge contained in the model.
+    Qq { question: String },
     /// Erase clippy's memory
     #[command(visible_alias = "neuralyze")]
     Forget,
@@ -47,17 +44,9 @@ pub struct TaskResult {
     created_at: chrono::DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Document {
-    pub id: String,
-    pub segment: i64,
-    pub content: String,
-    pub score: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SearchResults {
-    pub results: Vec<Document>,
+    pub results: Vec<libclippy::Document>,
 }
 
 fn elog(msg: String) {
@@ -107,76 +96,10 @@ async fn main() -> ExitCode {
 
     match args.command {
         Command::Ask { question } => {
-            let pb = ProgressBar::new_spinner();
-            pb.enable_steady_tick(std::time::Duration::from_millis(120));
-            pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
-            pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
-            pb.set_message("Rummaging through clippy's memex...");
-
-            let _results = client
-                .get(format!("{}/collections/clippy/search", args.memex_uri))
-                .json(&serde_json::json!({ "query": question, "limit": 5 }))
-                .send()
-                .await
-                .expect("Unable to connect to memex")
-                .json::<SearchResults>()
-                .await
-                .expect("Unable to parse response");
-
-            // Create a channel to to receive events
-            let (sender, mut receiver) = mpsc::unbounded_channel::<LlmEvent>();
-            let pb_clone = pb.clone();
-            let _guard = sender.clone();
-
-            let writer_handle = {
-                let pb = pb.clone();
-                tokio::spawn(async move {
-                    let mut first_token = true;
-                    loop {
-                        match receiver.recv().await {
-                            Some(event) => match &event {
-                                LlmEvent::TokenReceived(token) => {
-                                    if first_token {
-                                        print!("📎 💬:");
-                                        pb_clone.finish_and_clear();
-                                        first_token = false;
-                                    }
-                                    print!("{}", token);
-                                    std::io::stdout().flush().unwrap();
-                                }
-                                LlmEvent::InferenceDone => {
-                                    std::io::stdout().flush().unwrap();
-                                    return;
-                                }
-                                LlmEvent::ModelLoadProgress(prog) => {
-                                    pb.set_message(format!("{prog:?}"));
-                                }
-                            },
-                            None => {}
-                        }
-
-                        // give enough time for the std-out to process things
-                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                    }
-                })
-            };
-
-            let clippy_handle = {
-                let pb = pb.clone();
-                tokio::spawn(async move {
-                    ask_clippy(&clippy_cfg, &pb, &question, sender).await
-                })
-            };
-
-            let (_, ask_res) = tokio::join!(writer_handle, clippy_handle);
-            pb.finish_and_clear();
-            match ask_res {
-                Ok(Ok(stats)) => {
-                    println!("");
-                    println!("⏱️  predict time: {}ms", stats.predict_duration.as_millis());
-                }
-                _ => {}
-            };
+            handle_ask_cmd(&client, &args.memex_uri, &clippy_cfg, true, &question).await;
+        }
+        Command::Qq { question } => {
+            handle_ask_cmd(&client, &args.memex_uri, &clippy_cfg, false, &question).await;
         }
         Command::LoadFile { file } => {
             if !file.exists() || !file.is_file() {
@@ -216,4 +139,72 @@ async fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+async fn handle_ask_cmd(
+    client: &reqwest::Client,
+    memex_uri: &str,
+    clippy_cfg: &ClippyConfig,
+    use_memory: bool,
+    question: &str,
+) {
+    let question = question.trim().to_string();
+    if question.is_empty() {
+        clippy_say("Please ask a question");
+        return;
+    }
+
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(std::time::Duration::from_millis(120));
+    pb.set_style(ProgressStyle::with_template("{spinner:.green} {msg}").unwrap());
+    pb.set_message("Rummaging through clippy's memex...");
+
+    let results = if use_memory {
+        client
+            .get(format!("{}/collections/clippy/search", memex_uri))
+            // only use two pieces of content, otherwise loading will take a while.
+            .json(&serde_json::json!({ "query": question, "limit": 2 }))
+            .send()
+            .await
+            .expect("Unable to connect to memex")
+            .json::<SearchResults>()
+            .await
+            .expect("Unable to parse response")
+            .results
+    } else {
+        Vec::new()
+    };
+
+    clippy_say(&format!(
+        "found {} relevant segments",
+        results.len()
+    ));
+
+    // Create a channel to to receive events
+    let (sender, receiver) = mpsc::unbounded_channel::<LlmEvent>();
+    let _guard = sender.clone();
+
+    let writer_handle = tokio::spawn(libclippy::handle_llm_events(pb.clone(), receiver));
+
+    {
+        let pb = pb.clone();
+        let handle = tokio::runtime::Handle::current();
+        let clippy_cfg = clippy_cfg.clone();
+        std::thread::spawn(move || {
+            handle.spawn_blocking(move || {
+                match ask_clippy(&clippy_cfg, &pb, &question, &results, sender) {
+                    Ok(stats) => {
+                        println!("");
+                        println!("⏱️  predict time: {}ms", stats.predict_duration.as_millis());
+                    }
+                    Err(err) => {
+                        eprintln!("Unable to run inference: {err}");
+                    }
+                }
+            });
+        });
+    };
+
+    let _ = writer_handle.await;
+    pb.finish_and_clear();
 }

@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use llm::{samplers::TopPTopK, ModelArchitecture};
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ClippyConfig {
     pub prompt_template: PathBuf,
     pub model: ModelConfig,
@@ -33,7 +33,7 @@ impl ClippyConfig {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub enum ModelArch {
     Bloom,
     Gpt2,
@@ -46,17 +46,18 @@ pub enum ModelArch {
 impl From<ModelArchitecture> for ModelArch {
     fn from(value: ModelArchitecture) -> Self {
         match value {
-            ModelArchitecture::Bloom => Self::Bloom,
-            ModelArchitecture::Gpt2 => Self::Gpt2,
-            ModelArchitecture::GptJ => Self::GptJ,
-            ModelArchitecture::GptNeoX => Self::GptNeoX,
+            // ModelArchitecture::Bloom => Self::Bloom,
+            // ModelArchitecture::Gpt2 => Self::Gpt2,
+            // ModelArchitecture::GptJ => Self::GptJ,
+            // ModelArchitecture::GptNeoX => Self::GptNeoX,
             ModelArchitecture::Llama => Self::Llama,
-            ModelArchitecture::Mpt => Self::Mpt,
+            // ModelArchitecture::Mpt => Self::Mpt,
+            _ => panic!("Model not supported yet"),
         }
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct ModelConfig {
     pub path: PathBuf,
     pub model_type: ModelArch,

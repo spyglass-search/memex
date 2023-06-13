@@ -1,14 +1,27 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    path::PathBuf,
+};
 
 use config::ClippyConfig;
 use indicatif::ProgressBar;
 use llm::{
     InferenceRequest, InferenceResponse, InferenceStats, KnownModel, LoadProgress, VocabularySource,
 };
+use serde::Deserialize;
 use tera::Tera;
 use tokio::sync::mpsc;
 
 pub mod config;
+
+#[derive(Debug, Deserialize)]
+pub struct Document {
+    pub id: String,
+    pub segment: i64,
+    pub content: String,
+    pub score: f32,
+}
 
 #[derive(Debug)]
 pub enum LlmEvent {
@@ -17,7 +30,15 @@ pub enum LlmEvent {
     InferenceDone,
 }
 
-fn build_prompt(template_path: PathBuf, question: &str) -> anyhow::Result<String> {
+pub fn clippy_say(msg: &str) {
+    println!("📎 💬: {msg}");
+}
+
+fn build_prompt(
+    template_path: PathBuf,
+    question: &str,
+    ctxt: &[Document],
+) -> anyhow::Result<String> {
     let mut tera = Tera::default();
     let mut file = File::open(template_path)?;
     let mut buf = String::new();
@@ -35,6 +56,18 @@ fn build_prompt(template_path: PathBuf, question: &str) -> anyhow::Result<String
     ctx.insert("bot", "clippy");
     ctx.insert("user", "user");
 
+    let context = if ctxt.is_empty() {
+        "Answer the following question concisely.".to_string()
+    } else {
+        let extract = ctxt
+            .iter()
+            .map(|doc| format!("doc_id: {}\ncontent: {}", doc.id, doc.content))
+            .collect::<Vec<String>>()
+            .join("\n---\n");
+        format!("Answer the question given the following extracted parts of a document:\n```\n{extract}\n```")
+    };
+    ctx.insert("context", &context);
+
     match tera.render("prompt", &ctx) {
         Ok(s) => Ok(s),
         Err(err) => Err(anyhow::anyhow!(format!(
@@ -43,15 +76,42 @@ fn build_prompt(template_path: PathBuf, question: &str) -> anyhow::Result<String
     }
 }
 
-pub async fn ask_clippy(
+pub async fn handle_llm_events(pbar: ProgressBar, mut receiver: mpsc::UnboundedReceiver<LlmEvent>) {
+    let mut first_token = true;
+    loop {
+        if let Some(event) = receiver.recv().await {
+            match &event {
+                LlmEvent::TokenReceived(token) => {
+                    if first_token {
+                        print!("📎 💬:");
+                        pbar.finish_and_clear();
+                        first_token = false;
+                    }
+                    print!("{}", token);
+                    std::io::stdout().flush().unwrap();
+                }
+                LlmEvent::InferenceDone => {
+                    std::io::stdout().flush().unwrap();
+                    return;
+                }
+                LlmEvent::ModelLoadProgress(prog) => {
+                    pbar.set_message(format!("{prog:?}"));
+                }
+            }
+        }
+    }
+}
+
+pub fn ask_clippy(
     cfg: &ClippyConfig,
     pbar: &ProgressBar,
     question: &str,
+    ctxt: &[Document],
     llm_events: mpsc::UnboundedSender<LlmEvent>,
 ) -> anyhow::Result<InferenceStats> {
     // Build prompt
     pbar.set_message("Building prompt...");
-    let prompt = match build_prompt(cfg.prompt_template.clone(), question) {
+    let prompt = match build_prompt(cfg.prompt_template.clone(), question, ctxt) {
         Ok(s) => s,
         Err(err) => {
             return Err(anyhow::anyhow!(format!(
