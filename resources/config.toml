@@ -1,6 +1,8 @@
 prompt_template = "resources/clippy_prompt.txt"
 
 [model]
+# Download from https://huggingface.co/TheBloke/Wizard-Vicuna-7B-Uncensored-GGML/tree/main
+# And place in the same directory as this config file.
 path = "resources/Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin"
 model_type = "Llama"
 prefer_mmap = false
