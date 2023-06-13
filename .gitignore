@@ -1,3 +1,5 @@
 .env
 /target
 /data
+/resources/*.bin
+/**/target

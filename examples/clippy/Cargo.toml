@@ -1,0 +1,31 @@
+[package]
+name = "clippy"
+version = "0.1.0"
+edition = "2021"
+# Disable detection of clippy as a bin,
+# this should only be considered an example.
+autobins = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.0.32", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+colored = "2.0"
+indicatif = "0.17.5"
+llm = { git = "https://github.com/rustformers/llm.git", rev = "5e543f66981152ed0da2c1af6da3f695ae4b8742" }
+rand = "0.8.5"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tera = "1.19.0"
+tokio = { version = "1.25.0", features = ["full"] }
+toml = "0.7.4"
+
+[[example]]
+name = "clippy"
+path = "src/main.rs"
+
+[lib]
+name = "libclippy"
+path = "src/lib.rs"

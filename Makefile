@@ -4,6 +4,9 @@
 build:
 	cargo build -p memex
 
+build-all:
+	cargo build --all
+
 fmt:
 	cargo fmt --all
 

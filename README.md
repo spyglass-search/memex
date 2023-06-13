@@ -16,7 +16,7 @@ since Linux ARM builds are very finicky.
 > docker compose up
 # OR run natively in you have the rust toolchain installed.
 > cp .env.template .env
-> cargo run --release -p memex
+> cargo run --release -p memex serve
 ```
 
 ## Add a document
@@ -67,4 +67,25 @@ you've just added.
 }, ...]
 ```
 
-You'll
+## Env variables
+
+- `HOST` & `PORT`:
+
+## Examples
+
+For any of these examples, make sure you have `memex` running in the background.
+
+### Clippy
+
+#### Ask questions about a single or many document(s)
+
+``` bash
+# In a different terminal, run memex
+> cargo run --release -p memex serve
+# In your main terminal
+> cd examples/clippy
+> cargo run -- load-file example_docs/state_of_the_union.txt
+> cargo run -- ask "what does biden say about taxes?"
+```
+
+Given this context

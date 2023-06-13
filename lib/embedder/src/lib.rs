@@ -213,11 +213,6 @@ mod test {
         }));
 
         let encoding = tokenizer.encode(string, false).unwrap();
-        for (idx, encoding) in encoding.get_overflowing().iter().enumerate() {
-            let decoded = tokenizer.decode(encoding.get_ids().to_vec(), true);
-            println!("{} - {:?} - {:?}", idx, encoding.len(), decoded);
-        }
-
-        assert_eq!(encoding.len(), 0);
+        assert_eq!(encoding.len(), 128);
     }
 }
