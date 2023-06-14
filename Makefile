@@ -1,6 +1,8 @@
 .PHONY: build build-all fmt clippy docker-build setup-examples
 .default: build
 
+GIT_HASH ?= $(shell git rev-parse --short HEAD)
+
 build:
 	cargo build -p memex
 
@@ -15,7 +17,7 @@ clippy: fmt
 
 docker-build:
 	docker build \
-		--build-arg GIT_HASH=$(git rev-parse --short HEAD) \
+		--build-arg GIT_HASH=$(GIT_HASH) \
 		-f Dockerfile \
 		-t getspyglass/memex:latest .
 
