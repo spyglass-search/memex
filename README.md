@@ -86,8 +86,13 @@ For any of these examples, make sure you have `memex` running in the background.
 > cargo run --release -p memex serve
 # In your main terminal
 > cd examples/clippy
+# NOTE: there is no duplicate detection so running this twice will add the file twice.
 > cargo run -- load-file example_docs/state_of_the_union.txt
+# To ask clippy about your files, use "ask"
 > cargo run -- ask "what does biden say about taxes?"
+# To ask clippy without referring to it's memex and _ONLY_ relying on the knowledge
+# inside it's LLM, use "qq" / "quick-question"
+> cargo run -- qq "wget command to save a file to a directory"
+# To clear clippy's memory
+> cargo run -- forget
 ```
-
-Given this context

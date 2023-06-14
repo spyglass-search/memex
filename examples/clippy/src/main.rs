@@ -16,6 +16,7 @@ enum Command {
         question: String,
     },
     /// Ask clippy with only knowledge contained in the model.
+    #[command(visible_alias = "quick-question")]
     Qq { question: String },
     /// Erase clippy's memory
     #[command(visible_alias = "neuralyze")]
