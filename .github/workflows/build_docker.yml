@@ -1,0 +1,20 @@
+name: rust check/build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  ARCH: x86_64-unknown-linux-gnu
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    # Checkout source code
+    - uses: actions/checkout@v3
+    - name: build image
+      id: build-image
+      run: make docker-build
