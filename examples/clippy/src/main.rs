@@ -134,7 +134,20 @@ async fn main() -> ExitCode {
             println!("✅ added document (task_id: {})", resp.task_id);
         }
         Command::Forget => {
-            println!("Erasing clippy's memory.");
+            println!("🗑️  Erasing clippy's memory.");
+            let resp = client
+                .delete(format!("{}/collections/clippy", args.memex_uri))
+                .send()
+                .await
+                .expect("Unable to connect to memex")
+                .error_for_status();
+            match resp {
+                Ok(_) => println!("🤖 Ready for action."),
+                Err(err) => {
+                    elog(format!("Unable to delete memory: {err}"));
+                    return ExitCode::FAILURE;
+                }
+            }
         }
     }
 
