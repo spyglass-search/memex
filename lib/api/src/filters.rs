@@ -24,6 +24,13 @@ pub fn add_document(
         .and_then(handlers::handle_add_document)
 }
 
+pub fn delete_collection(
+) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("collections" / String)
+        .and(warp::delete())
+        .and_then(handlers::handle_delete_collection)
+}
+
 pub fn search_docs(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -46,5 +53,8 @@ pub fn check_task(
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    add_document(db).or(search_docs(db)).or(check_task(db))
+    add_document(db)
+        .or(delete_collection())
+        .or(search_docs(db))
+        .or(check_task(db))
 }

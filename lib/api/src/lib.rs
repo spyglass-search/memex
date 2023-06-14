@@ -1,7 +1,7 @@
 use dotenv_codegen::dotenv;
+use libmemex::db::create_connection_by_uri;
 use sea_orm::DatabaseConnection;
 use serde_json::json;
-use shared::db::create_connection_by_uri;
 use std::{convert::Infallible, net::Ipv4Addr};
 use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};

@@ -2,12 +2,12 @@ use crate::{
     schema::{self, Document, TaskResult},
     ServerError,
 };
-use embedder::{ModelConfig, SentenceEmbedder};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
-use shared::{
+use libmemex::{
     db::{document, queue},
+    embedding::{ModelConfig, SentenceEmbedder},
     vector::get_vector_storage,
 };
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 
 pub async fn handle_add_document(
     collection: String,
@@ -22,6 +22,30 @@ pub async fn handle_add_document(
 
     // Create an UUID for this document & add to queue
     Ok(warp::reply::json(&schema::TaskResult::from(task)))
+}
+
+pub async fn handle_delete_collection(
+    collection: String,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
+    let client = match get_vector_storage(&vector_uri, &collection).await {
+        Ok(client) => client,
+        Err(err) => {
+            return Err(warp::reject::custom(ServerError::Other(format!(
+                "Unable to connect to vector db: {err}"
+            ))))
+        }
+    };
+
+    match client.delete_collection().await {
+        Ok(()) => Ok(warp::reply::with_status(
+            warp::reply(),
+            warp::http::StatusCode::OK,
+        )),
+        Err(err) => Err(warp::reject::custom(ServerError::Other(format!(
+            "Unable to remove collection {collection}: {err}"
+        )))),
+    }
 }
 
 pub async fn handle_search_docs(

@@ -24,6 +24,32 @@ pub struct HnswStore {
 }
 
 impl VectorStore for HnswStore {
+    fn delete(&mut self, _: &str) -> Result<(), VectorStoreError> {
+        // TODO: Find (or build) a replacement for hnsw_lib
+        unimplemented!("Currently hnsw_lib does not support removing a single point")
+    }
+
+    fn delete_all(&mut self) -> Result<(), VectorStoreError> {
+        // Delete all db files @ storage path
+        let files = vec![
+            self.storage_path.join(GRAPH_FILE),
+            self.storage_path.join(DATA_FILE),
+            self.storage_path.join(META_FILE),
+        ];
+
+        for file in files {
+            if file.exists() {
+                let _ = std::fs::remove_file(file);
+            }
+        }
+
+        let store = Hnsw::new(16, 100, 16, 200, DistCosine);
+        self.hnsw = Arc::new(store);
+        self._id_map.clear();
+
+        Ok(())
+    }
+
     fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError> {
         let next_id = self._id_map.len() + 1;
         self._id_map.insert(next_id, doc_id.to_string());
@@ -102,6 +128,10 @@ impl HnswStore {
     }
 
     pub fn save(&self, store_path: PathBuf) -> Result<(), VectorStoreError> {
+        if !store_path.exists() {
+            let _ = std::fs::create_dir_all(store_path.clone());
+        }
+
         let filename = store_path.join(PREFIX).display().to_string();
 
         let _ = self
@@ -141,11 +171,12 @@ mod test {
         // First result should be "test-two"
         let (doc_id, _) = results.get(0).unwrap();
         assert_eq!(doc_id, "test-two");
+        let _ = store.delete_all();
     }
 
     #[test]
     fn test_save_load() {
-        let path = Path::new("/tmp");
+        let path = Path::new("/tmp/vectortest");
         let mut store = HnswStore::new(&path);
         store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
         store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
@@ -155,5 +186,23 @@ mod test {
 
         let loaded = HnswStore::load(&path).unwrap();
         assert_eq!(loaded._id_map.len(), store._id_map.len());
+        let _ = store.delete_all();
+    }
+
+    #[test]
+    fn test_delete_all() {
+        let path = Path::new("/tmp");
+        let mut store = HnswStore::new(&path);
+        store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
+        store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
+        store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
+
+        assert!(store.save("/tmp".into()).is_ok());
+        let _ = store.delete_all();
+        assert!(store._id_map.is_empty());
+        assert_eq!(store.hnsw.get_nb_point(), 0);
+
+        let res = HnswStore::load(&path);
+        assert!(res.is_err());
     }
 }

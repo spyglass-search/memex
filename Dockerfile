@@ -11,6 +11,7 @@ WORKDIR /usr/src
 COPY . .
 # Required for whisper-rs
 RUN rustup component add rustfmt
+RUN cp .env.template .env
 RUN cargo build -p memex --release
 
 FROM debian:stable-slim

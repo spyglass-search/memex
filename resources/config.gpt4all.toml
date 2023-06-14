@@ -1,0 +1,18 @@
+prompt_template = "resources/clippy_prompt.txt"
+
+[model]
+path = "resources/gpt4all-j-q4_0-ggjt.bin"
+model_type = "Gptj"
+prefer_mmap = false
+# The top K words by score are kept during sampling.
+top_k = 40
+# The cumulative probability after which no more words are kept for sampling.
+top_p = 0.95
+# The penalty for repeating tokens. Higher values make the generation less
+# likely to get into a loop, but may harm results when repetitive outputs
+# are desired.
+repeat_penalty = 1.30
+# Temperature (randomness) used for sampling. A higher number is more random.
+temperature = 0.2
+# The number of tokens to consider for the repetition penalty.
+repetition_penalty_last_n = 512
