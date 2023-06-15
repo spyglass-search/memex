@@ -5,6 +5,6 @@ If you don't know the answer, just say that you don't know. Don't try to make up
 
 {{user}}: {{context}}
 
-{{question}}
+Using the above context answer this question: {{question}}
 
 {{bot}}:
