@@ -19,7 +19,7 @@ since Linux ARM builds are very finicky.
 > cargo run --release -p memex serve
 # If everything is running correctly, you should see something like:
 2023-06-13T05:04:21.518732Z  INFO memex: starting server with roles: [Api, Worker]
-``
+```
 
 ## Add a document
 
