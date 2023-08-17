@@ -1,4 +1,4 @@
-FROM rust:1.68 as builder
+FROM rust:1.71 as builder
 
 ARG GIT_HASH=unknown
 ENV GIT_HASH=$GIT_HASH
