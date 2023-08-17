@@ -17,7 +17,7 @@ chrono = { version = "0.4", features = ["serde"] }
 dotenv = "0.15.0"
 dotenv_codegen = "0.15.0"
 log = "0.4"
-sea-orm = { version = "0.11", features = ["macros", "sqlx-postgres", "sqlx-sqlite", "runtime-tokio-rustls", "with-chrono", "with-json"], default-features = false }
+sea-orm = { version = "0.12", features = ["macros", "sqlx-postgres", "sqlx-sqlite", "runtime-tokio-rustls", "with-chrono", "with-json"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.25.0", features = ["full"] }
