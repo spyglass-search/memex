@@ -6,9 +6,7 @@ use std::{
 
 use config::ClippyConfig;
 use indicatif::ProgressBar;
-use llm::{
-    InferenceRequest, InferenceResponse, InferenceStats, KnownModel, LoadProgress, VocabularySource,
-};
+use llm::{InferenceRequest, InferenceResponse, InferenceStats, KnownModel, LoadProgress};
 use serde::Deserialize;
 use tera::Tera;
 use tokio::sync::mpsc;
@@ -134,7 +132,7 @@ pub fn ask_clippy(
     let channel = llm_events.clone();
     let model = match llm::load::<llm::models::Llama>(
         &cfg.model.path,
-        VocabularySource::Model,
+        llm::TokenizerSource::Embedded,
         model_params,
         move |progress| {
             if !channel.is_closed() {

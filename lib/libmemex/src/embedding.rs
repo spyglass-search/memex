@@ -179,14 +179,14 @@ pub fn segment_text(model_config: &ModelConfig, text: &str) -> Result<Vec<String
     let mut segments = Vec::new();
 
     let encoding = tokenizer.encode(text, false).unwrap();
-    let decoded = match tokenizer.decode(encoding.get_ids(), true) {
+    let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
         Ok(decoded) => decoded.replace(" ' ", "'"),
         Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
     };
 
     segments.push(decoded);
     for encoding in encoding.get_overflowing() {
-        let decoded = match tokenizer.decode(encoding.get_ids(), true) {
+        let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
             Ok(decoded) => decoded,
             Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
         };
@@ -206,7 +206,7 @@ mod test {
         let string: String = "this is a test string".into();
         let mut tokenizer =
             Tokenizer::from_pretrained("sentence-transformers/all-MiniLM-L12-v2", None).unwrap();
-        tokenizer.with_truncation(Some(TruncationParams {
+        let _ = tokenizer.with_truncation(Some(TruncationParams {
             max_length: 256,
             stride: 128,
             ..Default::default()

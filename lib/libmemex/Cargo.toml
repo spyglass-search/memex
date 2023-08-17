@@ -15,7 +15,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 strum = "0.25"
 strum_macros = "0.25"
-tokenizers = "0.13.3"
+tokenizers = "=0.13.3"
 tokio = { workspace = true }
 thiserror = "1.0"
 hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs", rev = "52a7f9174e002820d168fa65ca7303364ee3ac33" }
