@@ -13,6 +13,8 @@ rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+strum = "0.25"
+strum_macros = "0.25"
 tokenizers = "0.13.3"
 tokio = { workspace = true }
 thiserror = "1.0"

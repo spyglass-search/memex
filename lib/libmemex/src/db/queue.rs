@@ -1,10 +1,12 @@
 use sea_orm::entity::prelude::*;
+use sea_orm::FromJsonQueryResult;
 use sea_orm::{ConnectionTrait, DatabaseBackend, FromQueryResult, Set, Statement};
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
 const MAX_RETRIES: i32 = 5;
 
-#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq)]
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
 #[sea_orm(rs_type = "String", db_type = "String(None)")]
 pub enum JobStatus {
     #[sea_orm(string_value = "Queued")]
