@@ -1,32 +1,8 @@
-use sea_orm::{prelude::*, ConnectOptions, Database, DatabaseBackend, ExecResult, Schema};
+use migration::{Migrator, MigratorTrait};
+use sea_orm::{prelude::*, ConnectOptions, Database};
 
 pub mod document;
 pub mod queue;
-
-async fn make_table(
-    db: &DatabaseConnection,
-    backend: &DatabaseBackend,
-    schema: &Schema,
-    entity: impl EntityTrait,
-) -> Result<ExecResult, sea_orm::DbErr> {
-    db.execute(backend.build(schema.create_table_from_entity(entity).if_not_exists()))
-        .await
-}
-
-#[allow(dead_code)]
-pub async fn setup_schema(db: &DatabaseConnection) -> Result<(), sea_orm::DbErr> {
-    if cfg!(not(debug_assertions)) {
-        panic!("only use for dev/tests");
-    }
-
-    let backend = db.get_database_backend();
-    let schema = Schema::new(backend);
-
-    make_table(db, &backend, &schema, document::Entity).await?;
-    make_table(db, &backend, &schema, queue::Entity).await?;
-
-    Ok(())
-}
 
 /// Creates a connection based on the database uri
 pub async fn create_connection_by_uri(db_uri: &str) -> Result<DatabaseConnection, DbErr> {
@@ -40,7 +16,9 @@ pub async fn create_connection_by_uri(db_uri: &str) -> Result<DatabaseConnection
     let db = Database::connect(opt).await?;
 
     #[cfg(debug_assertions)]
-    setup_schema(&db).await.expect("Unable to setup schema");
+    Migrator::up(&db, None)
+        .await
+        .expect("Unable to run migrations");
 
     Ok(db)
 }
