@@ -8,18 +8,19 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 chrono = { workspace = true }
+dotenv = { workspace = true }
+hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs", rev = "52a7f9174e002820d168fa65ca7303364ee3ac33" }
 log = { workspace = true }
+migration ={ path = "../../migration" }
+opensearch = "2.1.0"
+qdrant-client = "1.2.0"
 rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strum = "0.25"
 strum_macros = "0.25"
+thiserror = "1.0"
 tokenizers = "=0.13.3"
 tokio = { workspace = true }
-thiserror = "1.0"
-hnsw_rs = { git = "https://github.com/jean-pierreBoth/hnswlib-rs", rev = "52a7f9174e002820d168fa65ca7303364ee3ac33" }
-qdrant-client = "1.2.0"
 url = "2.4.0"
-
-migration ={ path = "../../migration" }

@@ -15,3 +15,20 @@ services:
       VECTOR_CONNECTION: hnsw:///data
     volumes:
       - ./data:./data
+  docdb:
+    image: opensearchproject/opensearch:2
+    environment:
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - ./data/opensearch:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+      - 9600:9600 # required for Performance Analyzer
+

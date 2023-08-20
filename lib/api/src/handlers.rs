@@ -5,7 +5,7 @@ use crate::{
 use libmemex::{
     db::{document, queue},
     embedding::{ModelConfig, SentenceEmbedder},
-    vector::get_vector_storage,
+    storage::get_vector_storage,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 

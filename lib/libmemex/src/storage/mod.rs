@@ -6,6 +6,7 @@ use url::Url;
 use self::local::HnswStore;
 
 pub mod local;
+pub mod opensearch;
 pub mod qdrant;
 
 #[derive(Debug, Clone)]
