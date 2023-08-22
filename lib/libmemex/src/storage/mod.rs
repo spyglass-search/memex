@@ -44,25 +44,19 @@ pub enum VectorStoreError {
 }
 
 pub type VectorSearchResult = (String, f32);
+pub type StoreResult<T> = Result<T, VectorStoreError>;
 
 #[async_trait]
 pub trait VectorStore {
     /// Delete a single document from the vector store.
-    async fn delete(&mut self, doc_id: &str) -> Result<(), VectorStoreError>;
+    async fn delete(&mut self, doc_id: &str) -> StoreResult<()>;
     /// Delete ALL documents from the vector store.
-    async fn delete_all(&mut self) -> Result<(), VectorStoreError>;
-
-    async fn insert(
-        &mut self,
-        doc_id: &str,
-        text: &str,
-        vec: &[f32],
-    ) -> Result<(), VectorStoreError>;
-    async fn search(
-        &self,
-        vec: &[f32],
-        limit: usize,
-    ) -> Result<Vec<VectorSearchResult>, VectorStoreError>;
+    async fn delete_all(&mut self) -> StoreResult<()>;
+    /// Bulk insert many documents at a time
+    async fn bulk_insert(&mut self, data: &[VectorData]) -> StoreResult<()>;
+    /// Insert a single document
+    async fn insert(&mut self, data: &VectorData) -> StoreResult<()>;
+    async fn search(&self, vec: &[f32], limit: usize) -> StoreResult<Vec<VectorSearchResult>>;
 }
 
 #[derive(Clone)]
@@ -73,15 +67,7 @@ pub struct VectorStorage {
 impl VectorStorage {
     pub async fn add_vectors(&self, points: Vec<VectorData>) -> Result<(), VectorStoreError> {
         let mut client = self.client.lock().await;
-        for point in points {
-            if let Err(err) = client
-                .insert(&point.doc_id, &point.text, &point.vector)
-                .await
-            {
-                return Err(VectorStoreError::InsertionError(err.to_string()));
-            }
-        }
-
+        client.bulk_insert(&points).await?;
         Ok(())
     }
 

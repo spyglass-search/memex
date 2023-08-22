@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 
-use super::{VectorStore, VectorStoreError};
+use super::{StoreResult, VectorData, VectorStore, VectorStoreError};
 
 const PREFIX: &str = "vectors";
 const GRAPH_FILE: &str = "vectors.hnsw.graph";
@@ -52,15 +52,17 @@ impl VectorStore for HnswStore {
         Ok(())
     }
 
-    async fn insert(
-        &mut self,
-        doc_id: &str,
-        _text: &str,
-        vec: &[f32],
-    ) -> Result<(), VectorStoreError> {
+    async fn bulk_insert(&mut self, data: &[VectorData]) -> StoreResult<()> {
+        for datum in data {
+            self.insert(datum).await?;
+        }
+        Ok(())
+    }
+
+    async fn insert(&mut self, data: &VectorData) -> Result<(), VectorStoreError> {
         let next_id = self._id_map.len() + 1;
-        self._id_map.insert(next_id, doc_id.to_string());
-        self.hnsw.insert((&vec.to_vec(), next_id));
+        self._id_map.insert(next_id, data.doc_id.to_string());
+        self.hnsw.insert((&data.vector, next_id));
         // Naively save after each insert
         let _ = self.save(self.storage_path.clone());
         Ok(())
@@ -165,6 +167,8 @@ impl HnswStore {
 
 #[cfg(test)]
 mod test {
+    use crate::storage::VectorData;
+
     use super::{HnswStore, VectorStore};
     use std::path::Path;
 
@@ -173,15 +177,26 @@ mod test {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
-            .await
-            .unwrap();
-        store
-            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
-            .await
-            .unwrap();
-        store
-            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
+            .bulk_insert(&vec![
+                VectorData {
+                    doc_id: "test-one".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.0, 0.1, 0.2],
+                },
+                VectorData {
+                    doc_id: "test-two".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.1, 0.1, 0.1],
+                },
+                VectorData {
+                    doc_id: "test-three".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.3, 0.2, 0.1],
+                },
+            ])
             .await
             .unwrap();
 
@@ -199,15 +214,26 @@ mod test {
         let path = Path::new("/tmp/vectortest");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
-            .await
-            .unwrap();
-        store
-            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
-            .await
-            .unwrap();
-        store
-            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
+            .bulk_insert(&vec![
+                VectorData {
+                    doc_id: "test-one".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.0, 0.1, 0.2],
+                },
+                VectorData {
+                    doc_id: "test-two".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.1, 0.1, 0.1],
+                },
+                VectorData {
+                    doc_id: "test-three".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.3, 0.2, 0.1],
+                },
+            ])
             .await
             .unwrap();
 
@@ -223,15 +249,26 @@ mod test {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
-            .await
-            .unwrap();
-        store
-            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
-            .await
-            .unwrap();
-        store
-            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
+            .bulk_insert(&vec![
+                VectorData {
+                    doc_id: "test-one".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.0, 0.1, 0.2],
+                },
+                VectorData {
+                    doc_id: "test-two".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.1, 0.1, 0.1],
+                },
+                VectorData {
+                    doc_id: "test-three".into(),
+                    text: "".to_string(),
+                    segment_id: 0,
+                    vector: vec![0.3, 0.2, 0.1],
+                },
+            ])
             .await
             .unwrap();
 

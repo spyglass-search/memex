@@ -1,4 +1,4 @@
-use super::{VectorSearchResult, VectorStore, VectorStoreError};
+use super::{StoreResult, VectorData, VectorSearchResult, VectorStore, VectorStoreError};
 use async_trait::async_trait;
 use opensearch::{
     auth::Credentials,
@@ -50,30 +50,27 @@ impl OpenSearchStore {
 
 #[async_trait]
 impl VectorStore for OpenSearchStore {
-    async fn delete(&mut self, _doc_id: &str) -> Result<(), VectorStoreError> {
+    async fn delete(&mut self, _doc_id: &str) -> StoreResult<()> {
         Ok(())
     }
 
-    async fn delete_all(&mut self) -> Result<(), VectorStoreError> {
+    async fn delete_all(&mut self) -> StoreResult<()> {
         self.delete_index()
             .await
             .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
         Ok(())
     }
 
-    async fn insert(
-        &mut self,
-        doc_id: &str,
-        text: &str,
-        vec: &[f32],
-    ) -> Result<(), VectorStoreError> {
+    async fn bulk_insert(&mut self, data: &[VectorData]) -> StoreResult<()> {
         let mut ops = BulkOperations::new();
-        ops.push(BulkOperation::index(json!({
-            "_id": doc_id,
-            "text": text.to_string(),
-            "embedding": vec
-        })))
-        .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
+        for item in data {
+            ops.push(BulkOperation::index(json!({
+                "doc_id": item.doc_id,
+                "text": item.text.to_string(),
+                "embedding": item.vector
+            })))
+            .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
+        }
 
         self.client
             .bulk(opensearch::BulkParts::Index(&self.index_name))
@@ -85,11 +82,11 @@ impl VectorStore for OpenSearchStore {
         Ok(())
     }
 
-    async fn search(
-        &self,
-        _vec: &[f32],
-        _limit: usize,
-    ) -> Result<Vec<VectorSearchResult>, VectorStoreError> {
+    async fn insert(&mut self, data: &VectorData) -> StoreResult<()> {
+        self.bulk_insert(&[data.to_owned()]).await
+    }
+
+    async fn search(&self, _vec: &[f32], _limit: usize) -> StoreResult<Vec<VectorSearchResult>> {
         todo!()
     }
 }
@@ -147,7 +144,7 @@ mod test {
     use opensearch::{BulkOperation, BulkOperations};
     use serde_json::{json, Value};
 
-    const OPENSEARCH_URL: &str = "https://localhost:9200";
+    const OPENSEARCH_URL: &str = "https://admin:admin@localhost:9200";
 
     #[tokio::test]
     async fn test_initialize() {
