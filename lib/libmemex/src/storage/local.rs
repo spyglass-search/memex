@@ -26,7 +26,7 @@ pub struct HnswStore {
 
 #[async_trait]
 impl VectorStore for HnswStore {
-    async fn delete(&mut self, _: &str) -> Result<(), VectorStoreError> {
+    async fn delete(&mut self, _: &str, _: Option<usize>) -> Result<(), VectorStoreError> {
         // TODO: Find (or build) a replacement for hnsw_lib
         unimplemented!("Currently hnsw_lib does not support removing a single point")
     }

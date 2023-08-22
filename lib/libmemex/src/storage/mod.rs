@@ -52,7 +52,8 @@ pub type StoreResult<T> = Result<T, VectorStoreError>;
 #[async_trait]
 pub trait VectorStore {
     /// Delete a single document from the vector store.
-    async fn delete(&mut self, doc_id: &str) -> StoreResult<()>;
+    /// If a segment is given, that particular segment is deleted.
+    async fn delete(&mut self, doc_id: &str, segment: Option<usize>) -> StoreResult<()>;
     /// Delete ALL documents from the vector store.
     async fn delete_all(&mut self) -> StoreResult<()>;
     /// Bulk insert many documents at a time

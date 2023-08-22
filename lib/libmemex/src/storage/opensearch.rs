@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
-    http::transport::{SingleNodeConnectionPool, TransportBuilder},
+    http::{transport::{SingleNodeConnectionPool, TransportBuilder}, StatusCode},
     BulkOperation, BulkOperations, OpenSearch,
 };
 use serde_json::{json, Value};
@@ -22,6 +22,10 @@ pub struct OpenSearchConnectionConfig {
 }
 
 impl OpenSearchStore {
+    pub fn internal_id(doc_id: &str, segment_id: usize) -> String {
+        format!("{}-{}", doc_id, segment_id)
+    }
+
     pub async fn new(
         connect_url: &str,
         config: OpenSearchConnectionConfig,
@@ -46,11 +50,55 @@ impl OpenSearchStore {
             .await?;
         Ok(())
     }
+
+    pub async fn _wait_for_doc(&self, internal_id: &str) {
+        loop {
+            log::info!("waiting for doc to exist...");
+            let _ = tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            let res = self
+                .client
+                .exists(opensearch::ExistsParts::IndexId(&self.index_name, &internal_id))
+                .send()
+                .await;
+
+            match res {
+                Ok(res) => {
+                    if res.status_code() != StatusCode::NOT_FOUND {
+                        return;
+                    }
+                }
+                Err(err) => {
+                    log::error!("Error checking for doc: {}", err);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 #[async_trait]
 impl VectorStore for OpenSearchStore {
-    async fn delete(&mut self, _doc_id: &str) -> StoreResult<()> {
+    async fn delete(&mut self, doc_id: &str, segment_id: Option<usize>) -> StoreResult<()> {
+        // If only a doc_id is given, delete all segments with that doc_id.
+        if let Some(segment_id) = segment_id {
+            let internal_id = OpenSearchStore::internal_id(doc_id, segment_id);
+            self.client
+                .delete(opensearch::DeleteParts::IndexId(
+                    &self.index_name,
+                    &internal_id,
+                ))
+                .send()
+                .await
+                .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
+        } else {
+            self.client
+                .delete_by_query(opensearch::DeleteByQueryParts::Index(&[&self.index_name]))
+                .body(json!({ "query": { "match": { "doc_id": doc_id } } }))
+                .send()
+                .await
+                .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
+        }
+
         Ok(())
     }
 
@@ -64,21 +112,23 @@ impl VectorStore for OpenSearchStore {
     async fn bulk_insert(&mut self, data: &[VectorData]) -> StoreResult<()> {
         let mut ops = BulkOperations::new();
         for item in data {
+            let internal_id = Self::internal_id(&item.doc_id, item.segment_id);
             ops.push(BulkOperation::index(json!({
+                // Give a unique id per segment that is deterministic so we can
+                // update the document in the future.
                 "doc_id": item.doc_id,
+                "segment_id": item.segment_id,
                 "text": item.text.to_string(),
                 "embedding": item.vector
-            })))
+            })).id(internal_id))
             .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
         }
-
         self.client
             .bulk(opensearch::BulkParts::Index(&self.index_name))
             .body(vec![ops])
             .send()
             .await
             .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
-
         Ok(())
     }
 
@@ -108,12 +158,15 @@ impl VectorStore for OpenSearchStore {
 
         let response_body = response
             .json::<Value>()
-            .await.map_err(|err| VectorStoreError::SearchError(err.to_string()))?;
+            .await
+            .map_err(|err| VectorStoreError::SearchError(err.to_string()))?;
 
         let mut results = Vec::new();
         for hit in response_body["hits"]["hits"].as_array().unwrap() {
-            println!("{:?} - {:?}", hit["_score"], hit["_source"]);
-            results.push((hit["_source"]["doc_id"].to_string(), hit["_score"].as_f64().unwrap_or_default() as f32))
+            results.push((
+                hit["_source"]["doc_id"].to_string(),
+                hit["_score"].as_f64().unwrap_or_default() as f32,
+            ))
         }
 
         Ok(results)
@@ -169,7 +222,8 @@ pub fn connect(url: &str, credentials: Option<Credentials>) -> anyhow::Result<Op
 #[cfg(test)]
 mod test {
     use super::OpenSearchConnectionConfig;
-    use crate::storage::{VectorStore, VectorData};
+    use crate::storage::{opensearch::OpenSearchStore, VectorData, VectorStore};
+    use opensearch::http::StatusCode;
     use serde_json::Value;
 
     const OPENSEARCH_URL: &str = "https://admin:admin@localhost:9200";
@@ -205,6 +259,40 @@ mod test {
     }
 
     #[tokio::test]
+    async fn test_delete() {
+        let index_name = "test-delete";
+        let config = OpenSearchConnectionConfig {
+            index: index_name.to_string(),
+            embedding_dimension: 3,
+            ..Default::default()
+        };
+
+        let mut store = OpenSearchStore::new(OPENSEARCH_URL, config)
+            .await
+            .expect("Unable to create client");
+
+        store
+            .insert(&VectorData {
+                doc_id: "test-one".into(),
+                text: "".into(),
+                segment_id: 0,
+                vector: vec![1.5, 2.5, 3.5],
+            })
+            .await
+            .unwrap();
+
+        let internal_id = &OpenSearchStore::internal_id("test-one", 0);
+        store._wait_for_doc(internal_id).await;
+        assert!(store.delete("test-one", Some(0)).await.is_ok());
+
+        // Check to see if doc exists
+        let resp = store.client.exists(opensearch::ExistsParts::IndexId(index_name, &internal_id))
+            .send()
+            .await.unwrap();
+        assert_eq!(resp.status_code(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
     async fn test_search() {
         let index_name = "movies";
         let config = OpenSearchConnectionConfig {
@@ -212,47 +300,47 @@ mod test {
             embedding_dimension: 3,
             ..Default::default()
         };
+
         let mut store = super::OpenSearchStore::new(OPENSEARCH_URL, config)
             .await
             .expect("Unable to create client");
 
-        store.bulk_insert(&vec![
-            VectorData {
-                doc_id: "test-one".into(),
-                text: "".into(),
-                segment_id: 0,
-                vector: vec![1.5, 2.5, 3.5]
-            },
-            VectorData {
-                doc_id: "test-two".into(),
-                text: "".into(),
-                segment_id: 0,
-                vector: vec![2.5, 3.5, 4.5]
-            },
-            VectorData {
-                doc_id: "test-three".into(),
-                text: "".into(),
-                segment_id: 0,
-                vector: vec![2.5, 3.5, 5.5]
-            },
-            VectorData {
-                doc_id: "test-four".into(),
-                text: "".into(),
-                segment_id: 0,
-                vector: vec![2.5, 0.5, 5.5]
-            }
-        ]).await.unwrap();
+        store
+            .bulk_insert(&vec![
+                VectorData {
+                    doc_id: "test-one".into(),
+                    text: "".into(),
+                    segment_id: 0,
+                    vector: vec![1.5, 2.5, 3.5],
+                },
+                VectorData {
+                    doc_id: "test-two".into(),
+                    text: "".into(),
+                    segment_id: 0,
+                    vector: vec![2.5, 3.5, 4.5],
+                },
+                VectorData {
+                    doc_id: "test-three".into(),
+                    text: "".into(),
+                    segment_id: 0,
+                    vector: vec![2.5, 3.5, 5.5],
+                },
+                VectorData {
+                    doc_id: "test-four".into(),
+                    text: "".into(),
+                    segment_id: 0,
+                    vector: vec![2.5, 0.5, 5.5],
+                },
+            ])
+            .await
+            .unwrap();
 
-        // wait a little bit for indexing to finish.
-        let _ = tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        // Wait til doc exists
+        let internal_id = OpenSearchStore::internal_id("test-four", 0);
+        store._wait_for_doc(&internal_id).await;
 
         let results = store.search(&vec![2.0, 3.0, 4.0], 2).await.unwrap();
         assert_eq!(results.len(), 2);
-
-        for result in results {
-            println!("{:?} - {:?}", result.0, result.1);
-        }
-
         store.delete_all().await.expect("Unable to delete index");
     }
 }
