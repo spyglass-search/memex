@@ -17,9 +17,9 @@ futures = "0.3.28"
 log = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-strum = "0.24"
-strum_macros = "0.24"
-tiktoken-rs = "0.4.2"
+strum = "0.25"
+strum_macros = "0.25"
+tiktoken-rs = "0.5.1"
 thiserror = "1.0"
 tokio = { workspace = true }
 tracing = { workspace = true }
