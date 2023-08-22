@@ -245,6 +245,8 @@ async fn _process_embeddings(
 
         vectors.push(VectorData {
             doc_id,
+            text: embedding.content.clone(),
+            segment_id: idx,
             vector: embedding.vector.clone(),
         });
     }

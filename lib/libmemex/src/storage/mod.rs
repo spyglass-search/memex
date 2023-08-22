@@ -15,8 +15,14 @@ pub mod qdrant;
 
 #[derive(Debug, Clone)]
 pub struct VectorData {
+    /// Doc ID this belongs to
     pub doc_id: String,
+    /// Context represented by this vector
+    pub text: String,
+    /// Sentence embedding for this text content
     pub vector: Vec<f32>,
+    /// Segment ID internall for a document
+    pub segment_id: usize,
 }
 
 #[derive(Debug, Error)]
@@ -46,7 +52,12 @@ pub trait VectorStore {
     /// Delete ALL documents from the vector store.
     async fn delete_all(&mut self) -> Result<(), VectorStoreError>;
 
-    async fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError>;
+    async fn insert(
+        &mut self,
+        doc_id: &str,
+        text: &str,
+        vec: &[f32],
+    ) -> Result<(), VectorStoreError>;
     async fn search(
         &self,
         vec: &[f32],
@@ -63,7 +74,10 @@ impl VectorStorage {
     pub async fn add_vectors(&self, points: Vec<VectorData>) -> Result<(), VectorStoreError> {
         let mut client = self.client.lock().await;
         for point in points {
-            if let Err(err) = client.insert(&point.doc_id, &point.vector).await {
+            if let Err(err) = client
+                .insert(&point.doc_id, &point.text, &point.vector)
+                .await
+            {
                 return Err(VectorStoreError::InsertionError(err.to_string()));
             }
         }

@@ -52,7 +52,12 @@ impl VectorStore for HnswStore {
         Ok(())
     }
 
-    async fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError> {
+    async fn insert(
+        &mut self,
+        doc_id: &str,
+        _text: &str,
+        vec: &[f32],
+    ) -> Result<(), VectorStoreError> {
         let next_id = self._id_map.len() + 1;
         self._id_map.insert(next_id, doc_id.to_string());
         self.hnsw.insert((&vec.to_vec(), next_id));
@@ -168,15 +173,15 @@ mod test {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
             .await
             .unwrap();
         store
-            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
             .await
             .unwrap();
         store
-            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
             .await
             .unwrap();
 
@@ -194,15 +199,15 @@ mod test {
         let path = Path::new("/tmp/vectortest");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
             .await
             .unwrap();
         store
-            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
             .await
             .unwrap();
         store
-            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
             .await
             .unwrap();
 
@@ -218,15 +223,15 @@ mod test {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
         store
-            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .insert("test-one", "example text", &vec![0.0, 0.1, 0.2])
             .await
             .unwrap();
         store
-            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .insert("test-two", "example text", &vec![0.1, 0.1, 0.1])
             .await
             .unwrap();
         store
-            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .insert("test-three", "example text", &vec![0.3, 0.2, 0.1])
             .await
             .unwrap();
 

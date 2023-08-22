@@ -4,8 +4,9 @@ use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
-    OpenSearch,
+    BulkOperation, BulkOperations, OpenSearch,
 };
+use serde_json::json;
 use url::Url;
 
 pub struct OpenSearchStore {
@@ -54,15 +55,34 @@ impl VectorStore for OpenSearchStore {
     }
 
     async fn delete_all(&mut self) -> Result<(), VectorStoreError> {
-        let _ = self
-            .delete_index()
+        self.delete_index()
             .await
-            .map_err(|err| VectorStoreError::DeleteError(err.to_string()));
+            .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
         Ok(())
     }
 
-    async fn insert(&mut self, _doc_id: &str, _vec: &[f32]) -> Result<(), VectorStoreError> {
-        todo!()
+    async fn insert(
+        &mut self,
+        doc_id: &str,
+        text: &str,
+        vec: &[f32],
+    ) -> Result<(), VectorStoreError> {
+        let mut ops = BulkOperations::new();
+        ops.push(BulkOperation::index(json!({
+            "_id": doc_id,
+            "text": text.to_string(),
+            "embedding": vec
+        })))
+        .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
+
+        self.client
+            .bulk(opensearch::BulkParts::Index(&self.index_name))
+            .body(vec![ops])
+            .send()
+            .await
+            .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
+
+        Ok(())
     }
 
     async fn search(
