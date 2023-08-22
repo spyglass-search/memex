@@ -1,6 +1,7 @@
 use super::{VectorSearchResult, VectorStore, VectorStoreError};
 use async_trait::async_trait;
 use opensearch::{
+    auth::Credentials,
     cert::CertificateValidation,
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
     OpenSearch,
@@ -12,16 +13,25 @@ pub struct OpenSearchStore {
     pub index_name: String,
 }
 
+#[derive(Default)]
+pub struct OpenSearchConnectionConfig {
+    pub credentials: Option<Credentials>,
+    pub index: String,
+    pub embedding_dimension: usize,
+}
+
 impl OpenSearchStore {
-    pub async fn new(index: &str, embedding_dim: usize) -> anyhow::Result<Self> {
-        let connect_url = std::env::var("OPENSEARCH_ENDPOINT").unwrap();
-        let client = connect(&connect_url)?;
+    pub async fn new(
+        connect_url: &str,
+        config: OpenSearchConnectionConfig,
+    ) -> anyhow::Result<Self> {
+        let client = connect(connect_url, config.credentials)?;
         // Make sure index is created
-        create_index(&client, index, embedding_dim).await?;
+        create_index(&client, &config.index, config.embedding_dimension).await?;
 
         Ok(Self {
             client,
-            index_name: index.to_string(),
+            index_name: config.index.clone(),
         })
     }
 
@@ -91,31 +101,42 @@ pub async fn create_index(
     Ok(())
 }
 
-pub fn connect(url: &str) -> anyhow::Result<OpenSearch> {
+/// Utility method to connect to
+pub fn connect(url: &str, credentials: Option<Credentials>) -> anyhow::Result<OpenSearch> {
     let url = Url::parse(url)?;
-    let transport = TransportBuilder::new(SingleNodeConnectionPool::new(url))
-        .cert_validation(CertificateValidation::None)
-        .auth(opensearch::auth::Credentials::Basic(
-            "admin".to_string(),
-            "admin".to_string(),
-        ))
-        .build()?;
 
-    Ok(OpenSearch::new(transport))
+    let mut transport = TransportBuilder::new(SingleNodeConnectionPool::new(url.clone()));
+    transport = transport.cert_validation(CertificateValidation::None);
+
+    if let Some(creds) = credentials {
+        transport = transport.auth(creds);
+    } else {
+        transport = transport.auth(opensearch::auth::Credentials::Basic(
+            url.username().to_string(),
+            url.password().map_or("".to_string(), |x| x.to_string()),
+        ));
+    }
+
+    Ok(OpenSearch::new(transport.build()?))
 }
 
 #[cfg(test)]
 mod test {
+    use super::OpenSearchConnectionConfig;
     use crate::storage::VectorStore;
-    use dotenv::dotenv;
     use opensearch::{BulkOperation, BulkOperations};
     use serde_json::{json, Value};
 
+    const OPENSEARCH_URL: &str = "https://localhost:9200";
+
     #[tokio::test]
     async fn test_initialize() {
-        dotenv().ok();
-
-        let mut store = super::OpenSearchStore::new("test", 3)
+        let config = OpenSearchConnectionConfig {
+            index: "test".to_string(),
+            embedding_dimension: 3,
+            ..Default::default()
+        };
+        let mut store = super::OpenSearchStore::new(OPENSEARCH_URL, config)
             .await
             .expect("Unable to create client");
 
@@ -140,10 +161,13 @@ mod test {
 
     #[tokio::test]
     async fn test_search() {
-        dotenv().ok();
-
         let index_name = "movies";
-        let mut store = super::OpenSearchStore::new(index_name, 3)
+        let config = OpenSearchConnectionConfig {
+            index: index_name.to_string(),
+            embedding_dimension: 3,
+            ..Default::default()
+        };
+        let mut store = super::OpenSearchStore::new(OPENSEARCH_URL, config)
             .await
             .expect("Unable to create client");
 

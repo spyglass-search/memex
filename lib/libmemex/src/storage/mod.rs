@@ -4,7 +4,10 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use url::Url;
 
-use self::local::HnswStore;
+use self::{
+    local::HnswStore,
+    opensearch::{OpenSearchConnectionConfig, OpenSearchStore},
+};
 
 pub mod local;
 pub mod opensearch;
@@ -18,6 +21,8 @@ pub struct VectorData {
 
 #[derive(Debug, Error)]
 pub enum VectorStoreError {
+    #[error("Unable to connect: {0}")]
+    ConnectionError(String),
     #[error("DeleteError: {0}")]
     DeleteError(String),
     #[error("File IO error: {0}")]
@@ -93,7 +98,7 @@ pub async fn get_vector_storage(
     let scheme = parsed_uri.scheme();
 
     // Only support one right now
-    let client = if scheme == "hnsw" {
+    let client: Arc<Mutex<dyn VectorStore + Send + Sync>> = if scheme == "hnsw" {
         let storage: PathBuf = uri.strip_prefix("hnsw://").unwrap_or_default().into();
         // Collections are stored as folders
         let storage = storage.join(collection);
@@ -101,16 +106,28 @@ pub async fn get_vector_storage(
             std::fs::create_dir_all(storage.clone())?;
         }
 
-        if HnswStore::has_store(&storage) {
+        let store = if HnswStore::has_store(&storage) {
             HnswStore::load(&storage)?
         } else {
             HnswStore::new(&storage)
-        }
+        };
+
+        Arc::new(Mutex::new(store))
+    } else if scheme == "opensearch+https" {
+        let connect_url = uri.strip_prefix("opensearch+").unwrap_or_default();
+        let config = OpenSearchConnectionConfig {
+            index: collection.to_string(),
+            embedding_dimension: 384,
+            ..Default::default()
+        };
+
+        let store = OpenSearchStore::new(connect_url, config)
+            .await
+            .map_err(|x| VectorStoreError::ConnectionError(x.to_string()))?;
+        Arc::new(Mutex::new(store))
     } else {
         return Err(VectorStoreError::Unsupported(uri.to_string()));
     };
 
-    Ok(VectorStorage {
-        client: Arc::new(Mutex::new(client)),
-    })
+    Ok(VectorStorage { client })
 }
