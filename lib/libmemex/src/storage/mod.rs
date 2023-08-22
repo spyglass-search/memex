@@ -35,6 +35,8 @@ pub enum VectorStoreError {
     FileIOError(#[from] std::io::Error),
     #[error("Unable to insert vector: {0}")]
     InsertionError(String),
+    #[error("Unable to search: {0}")]
+    SearchError(String),
     #[error("Unable to deserialize: {0}")]
     SerdeError(#[from] serde_json::Error),
     #[error("Unable to save db file: {0}")]
@@ -43,6 +45,7 @@ pub enum VectorStoreError {
     Unsupported(String),
 }
 
+// doc_id & score
 pub type VectorSearchResult = (String, f32);
 pub type StoreResult<T> = Result<T, VectorStoreError>;
 

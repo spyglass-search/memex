@@ -6,7 +6,7 @@ use opensearch::{
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
     BulkOperation, BulkOperations, OpenSearch,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use url::Url;
 
 pub struct OpenSearchStore {
@@ -86,8 +86,37 @@ impl VectorStore for OpenSearchStore {
         self.bulk_insert(&[data.to_owned()]).await
     }
 
-    async fn search(&self, _vec: &[f32], _limit: usize) -> StoreResult<Vec<VectorSearchResult>> {
-        todo!()
+    async fn search(&self, vec: &[f32], limit: usize) -> StoreResult<Vec<VectorSearchResult>> {
+        let response = self
+            .client
+            .search(opensearch::SearchParts::Index(&[&self.index_name]))
+            .body(serde_json::json!({
+                    "size": limit,
+                    "query": {
+                        "knn": {
+                            "embedding": {
+                                "vector": vec,
+                                "k": limit
+                            }
+                        },
+                    }
+                }
+            ))
+            .send()
+            .await
+            .map_err(|err| VectorStoreError::SearchError(err.to_string()))?;
+
+        let response_body = response
+            .json::<Value>()
+            .await.map_err(|err| VectorStoreError::SearchError(err.to_string()))?;
+
+        let mut results = Vec::new();
+        for hit in response_body["hits"]["hits"].as_array().unwrap() {
+            println!("{:?} - {:?}", hit["_score"], hit["_source"]);
+            results.push((hit["_source"]["doc_id"].to_string(), hit["_score"].as_f64().unwrap_or_default() as f32))
+        }
+
+        Ok(results)
     }
 }
 
@@ -140,9 +169,8 @@ pub fn connect(url: &str, credentials: Option<Credentials>) -> anyhow::Result<Op
 #[cfg(test)]
 mod test {
     use super::OpenSearchConnectionConfig;
-    use crate::storage::VectorStore;
-    use opensearch::{BulkOperation, BulkOperations};
-    use serde_json::{json, Value};
+    use crate::storage::{VectorStore, VectorData};
+    use serde_json::Value;
 
     const OPENSEARCH_URL: &str = "https://admin:admin@localhost:9200";
 
@@ -188,65 +216,41 @@ mod test {
             .await
             .expect("Unable to create client");
 
-        let mut ops = BulkOperations::new();
-        ops.push(BulkOperation::index(
-            json!({"price": 12.2, "embedding": [1.5, 2.5, 3.5] }),
-        ))
-        .unwrap();
-        ops.push(BulkOperation::index(
-            json!({"price": 7.1, "embedding": [2.5, 3.5, 4.5] }),
-        ))
-        .unwrap();
-        ops.push(BulkOperation::index(
-            json!({"price": 8.1, "embedding": [2.5, 3.5, 5.5] }),
-        ))
-        .unwrap();
-        ops.push(BulkOperation::index(
-            json!({"price": 9.1, "embedding": [2.5, 0.5, 5.5] }),
-        ))
-        .unwrap();
-
-        store
-            .client
-            .bulk(opensearch::BulkParts::Index(index_name))
-            .body(vec![ops])
-            .send()
-            .await
-            .expect("Unable to index");
+        store.bulk_insert(&vec![
+            VectorData {
+                doc_id: "test-one".into(),
+                text: "".into(),
+                segment_id: 0,
+                vector: vec![1.5, 2.5, 3.5]
+            },
+            VectorData {
+                doc_id: "test-two".into(),
+                text: "".into(),
+                segment_id: 0,
+                vector: vec![2.5, 3.5, 4.5]
+            },
+            VectorData {
+                doc_id: "test-three".into(),
+                text: "".into(),
+                segment_id: 0,
+                vector: vec![2.5, 3.5, 5.5]
+            },
+            VectorData {
+                doc_id: "test-four".into(),
+                text: "".into(),
+                segment_id: 0,
+                vector: vec![2.5, 0.5, 5.5]
+            }
+        ]).await.unwrap();
 
         // wait a little bit for indexing to finish.
         let _ = tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
 
-        let response = store
-            .client
-            .search(opensearch::SearchParts::Index(&[index_name]))
-            .body(serde_json::json!({
-                    "size": 2,
-                    "query": {
-                        "knn": {
-                            "embedding": {
-                                "vector": [2.0, 3.0, 4.0],
-                                "k": 10
-                            }
-                        },
-                    }
-                }
-            ))
-            .send()
-            .await
-            .expect("Unable to search");
+        let results = store.search(&vec![2.0, 3.0, 4.0], 2).await.unwrap();
+        assert_eq!(results.len(), 2);
 
-        let response_body = response
-            .json::<Value>()
-            .await
-            .expect("Unable to parse results");
-
-        println!(
-            "RESPONSE:\n{}\nRESULTS:",
-            serde_json::to_string_pretty(&response_body).unwrap()
-        );
-        for hit in response_body["hits"]["hits"].as_array().unwrap() {
-            println!("{:?} - {:?}", hit["_score"], hit["_source"]);
+        for result in results {
+            println!("{:?} - {:?}", result.0, result.1);
         }
 
         store.delete_all().await.expect("Unable to delete index");
