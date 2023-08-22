@@ -1,3 +1,4 @@
+use super::{VectorSearchResult, VectorStore, VectorStoreError};
 use async_trait::async_trait;
 use opensearch::{
     cert::CertificateValidation,
@@ -5,10 +6,6 @@ use opensearch::{
     OpenSearch,
 };
 use url::Url;
-
-use super::{VectorSearchResult, VectorStore, VectorStoreError};
-
-// use super::VectorStore;
 
 pub struct OpenSearchStore {
     pub client: OpenSearch,
@@ -109,6 +106,7 @@ pub fn connect(url: &str) -> anyhow::Result<OpenSearch> {
 
 #[cfg(test)]
 mod test {
+    use crate::storage::VectorStore;
     use dotenv::dotenv;
     use opensearch::{BulkOperation, BulkOperations};
     use serde_json::{json, Value};
@@ -117,7 +115,7 @@ mod test {
     async fn test_initialize() {
         dotenv().ok();
 
-        let store = super::OpenSearchStore::new("test", 3)
+        let mut store = super::OpenSearchStore::new("test", 3)
             .await
             .expect("Unable to create client");
 
@@ -137,7 +135,7 @@ mod test {
             info["version"]["number"].as_str().unwrap()
         );
 
-        store.delete().await.expect("Unable to delete index");
+        store.delete_all().await.expect("Unable to delete index");
     }
 
     #[tokio::test]
@@ -145,7 +143,7 @@ mod test {
         dotenv().ok();
 
         let index_name = "movies";
-        let store = super::OpenSearchStore::new(index_name, 3)
+        let mut store = super::OpenSearchStore::new(index_name, 3)
             .await
             .expect("Unable to create client");
 
@@ -210,6 +208,6 @@ mod test {
             println!("{:?} - {:?}", hit["_score"], hit["_source"]);
         }
 
-        store.delete().await.expect("Unable to delete index");
+        store.delete_all().await.expect("Unable to delete index");
     }
 }

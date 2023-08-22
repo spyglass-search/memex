@@ -208,7 +208,7 @@ mod test {
 
         assert!(store.save("/tmp".into()).is_ok());
 
-        let loaded = HnswStore::load(&path).await.unwrap();
+        let loaded = HnswStore::load(&path).unwrap();
         assert_eq!(loaded._id_map.len(), store._id_map.len());
         let _ = store.delete_all();
     }
@@ -231,7 +231,7 @@ mod test {
             .unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
-        let _ = store.delete_all();
+        let _ = store.delete_all().await;
         assert!(store._id_map.is_empty());
         assert_eq!(store.hnsw.get_nb_point(), 0);
 
