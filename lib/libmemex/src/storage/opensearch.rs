@@ -1,10 +1,12 @@
-use anyhow::Result;
+use async_trait::async_trait;
 use opensearch::{
     cert::CertificateValidation,
     http::transport::{SingleNodeConnectionPool, TransportBuilder},
     OpenSearch,
 };
 use url::Url;
+
+use super::{VectorSearchResult, VectorStore, VectorStoreError};
 
 // use super::VectorStore;
 
@@ -14,11 +16,11 @@ pub struct OpenSearchStore {
 }
 
 impl OpenSearchStore {
-    pub async fn new(index: &str, embedding_dim: usize) -> Result<Self> {
+    pub async fn new(index: &str, embedding_dim: usize) -> anyhow::Result<Self> {
         let connect_url = std::env::var("OPENSEARCH_ENDPOINT").unwrap();
         let client = connect(&connect_url)?;
         // Make sure index is created
-        create_index(&client, &index, embedding_dim).await?;
+        create_index(&client, index, embedding_dim).await?;
 
         Ok(Self {
             client,
@@ -26,7 +28,7 @@ impl OpenSearchStore {
         })
     }
 
-    pub async fn delete(&self) -> Result<()> {
+    pub async fn delete_index(&self) -> anyhow::Result<()> {
         self.client
             .indices()
             .delete(opensearch::indices::IndicesDeleteParts::Index(&[
@@ -38,7 +40,38 @@ impl OpenSearchStore {
     }
 }
 
-pub async fn create_index(client: &OpenSearch, name: &str, embedding_dim: usize) -> Result<()> {
+#[async_trait]
+impl VectorStore for OpenSearchStore {
+    async fn delete(&mut self, _doc_id: &str) -> Result<(), VectorStoreError> {
+        Ok(())
+    }
+
+    async fn delete_all(&mut self) -> Result<(), VectorStoreError> {
+        let _ = self
+            .delete_index()
+            .await
+            .map_err(|err| VectorStoreError::DeleteError(err.to_string()));
+        Ok(())
+    }
+
+    async fn insert(&mut self, _doc_id: &str, _vec: &[f32]) -> Result<(), VectorStoreError> {
+        todo!()
+    }
+
+    async fn search(
+        &self,
+        _vec: &[f32],
+        _limit: usize,
+    ) -> Result<Vec<VectorSearchResult>, VectorStoreError> {
+        todo!()
+    }
+}
+
+pub async fn create_index(
+    client: &OpenSearch,
+    name: &str,
+    embedding_dim: usize,
+) -> anyhow::Result<()> {
     client
         .indices()
         .create(opensearch::indices::IndicesCreateParts::Index(name))
@@ -61,7 +94,7 @@ pub async fn create_index(client: &OpenSearch, name: &str, embedding_dim: usize)
     Ok(())
 }
 
-pub fn connect(url: &str) -> Result<OpenSearch> {
+pub fn connect(url: &str) -> anyhow::Result<OpenSearch> {
     let url = Url::parse(url)?;
     let transport = TransportBuilder::new(SingleNodeConnectionPool::new(url))
         .cert_validation(CertificateValidation::None)
@@ -131,7 +164,8 @@ mod test {
         .unwrap();
         ops.push(BulkOperation::index(
             json!({"price": 9.1, "embedding": [2.5, 0.5, 5.5] }),
-        )).unwrap();
+        ))
+        .unwrap();
 
         store
             .client

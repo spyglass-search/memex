@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -17,6 +18,8 @@ pub struct VectorData {
 
 #[derive(Debug, Error)]
 pub enum VectorStoreError {
+    #[error("DeleteError: {0}")]
+    DeleteError(String),
     #[error("File IO error: {0}")]
     FileIOError(#[from] std::io::Error),
     #[error("Unable to insert vector: {0}")]
@@ -31,14 +34,15 @@ pub enum VectorStoreError {
 
 pub type VectorSearchResult = (String, f32);
 
+#[async_trait]
 pub trait VectorStore {
     /// Delete a single document from the vector store.
-    fn delete(&mut self, doc_id: &str) -> Result<(), VectorStoreError>;
+    async fn delete(&mut self, doc_id: &str) -> Result<(), VectorStoreError>;
     /// Delete ALL documents from the vector store.
-    fn delete_all(&mut self) -> Result<(), VectorStoreError>;
+    async fn delete_all(&mut self) -> Result<(), VectorStoreError>;
 
-    fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError>;
-    fn search(
+    async fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError>;
+    async fn search(
         &self,
         vec: &[f32],
         limit: usize,
@@ -47,14 +51,14 @@ pub trait VectorStore {
 
 #[derive(Clone)]
 pub struct VectorStorage {
-    pub client: Arc<Mutex<dyn VectorStore + Send>>,
+    pub client: Arc<Mutex<dyn VectorStore + Send + Sync>>,
 }
 
 impl VectorStorage {
     pub async fn add_vectors(&self, points: Vec<VectorData>) -> Result<(), VectorStoreError> {
         let mut client = self.client.lock().await;
         for point in points {
-            if let Err(err) = client.insert(&point.doc_id, &point.vector) {
+            if let Err(err) = client.insert(&point.doc_id, &point.vector).await {
                 return Err(VectorStoreError::InsertionError(err.to_string()));
             }
         }
@@ -64,7 +68,7 @@ impl VectorStorage {
 
     pub async fn delete_collection(&self) -> Result<(), VectorStoreError> {
         let mut client = self.client.lock().await;
-        client.delete_all()
+        client.delete_all().await
     }
 
     pub async fn search(
@@ -73,7 +77,7 @@ impl VectorStorage {
         limit: usize,
     ) -> Result<Vec<VectorSearchResult>, VectorStoreError> {
         let client = self.client.lock().await;
-        client.search(query, limit)
+        client.search(query, limit).await
     }
 }
 

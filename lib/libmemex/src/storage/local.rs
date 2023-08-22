@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use hnsw_rs::{
     hnswio::{load_description, load_hnsw},
     prelude::*,
@@ -23,13 +24,14 @@ pub struct HnswStore {
     pub _id_map: HashMap<usize, String>,
 }
 
+#[async_trait]
 impl VectorStore for HnswStore {
-    fn delete(&mut self, _: &str) -> Result<(), VectorStoreError> {
+    async fn delete(&mut self, _: &str) -> Result<(), VectorStoreError> {
         // TODO: Find (or build) a replacement for hnsw_lib
         unimplemented!("Currently hnsw_lib does not support removing a single point")
     }
 
-    fn delete_all(&mut self) -> Result<(), VectorStoreError> {
+    async fn delete_all(&mut self) -> Result<(), VectorStoreError> {
         // Delete all db files @ storage path
         let files = vec![
             self.storage_path.join(GRAPH_FILE),
@@ -50,7 +52,7 @@ impl VectorStore for HnswStore {
         Ok(())
     }
 
-    fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError> {
+    async fn insert(&mut self, doc_id: &str, vec: &[f32]) -> Result<(), VectorStoreError> {
         let next_id = self._id_map.len() + 1;
         self._id_map.insert(next_id, doc_id.to_string());
         self.hnsw.insert((&vec.to_vec(), next_id));
@@ -59,7 +61,11 @@ impl VectorStore for HnswStore {
         Ok(())
     }
 
-    fn search(&self, vec: &[f32], limit: usize) -> Result<Vec<(String, f32)>, VectorStoreError> {
+    async fn search(
+        &self,
+        vec: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(String, f32)>, VectorStoreError> {
         let neighbors = self.hnsw.search(vec, limit, 16 * 2);
 
         let mut results = Vec::new();
@@ -157,15 +163,24 @@ mod test {
     use super::{HnswStore, VectorStore};
     use std::path::Path;
 
-    #[test]
-    fn test_hnsw() {
+    #[tokio::test]
+    async fn test_hnsw() {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
-        store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
-        store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
-        store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
+        store
+            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .await
+            .unwrap();
+        store
+            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .await
+            .unwrap();
+        store
+            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .await
+            .unwrap();
 
-        let results = store.search(&vec![0.1, 0.1, 0.1], 3).unwrap();
+        let results = store.search(&vec![0.1, 0.1, 0.1], 3).await.unwrap();
         assert_eq!(results.len(), 3);
 
         // First result should be "test-two"
@@ -174,28 +189,46 @@ mod test {
         let _ = store.delete_all();
     }
 
-    #[test]
-    fn test_save_load() {
+    #[tokio::test]
+    async fn test_save_load() {
         let path = Path::new("/tmp/vectortest");
         let mut store = HnswStore::new(&path);
-        store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
-        store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
-        store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
+        store
+            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .await
+            .unwrap();
+        store
+            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .await
+            .unwrap();
+        store
+            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .await
+            .unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
 
-        let loaded = HnswStore::load(&path).unwrap();
+        let loaded = HnswStore::load(&path).await.unwrap();
         assert_eq!(loaded._id_map.len(), store._id_map.len());
         let _ = store.delete_all();
     }
 
-    #[test]
-    fn test_delete_all() {
+    #[tokio::test]
+    async fn test_delete_all() {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
-        store.insert("test-one", &vec![0.0, 0.1, 0.2]).unwrap();
-        store.insert("test-two", &vec![0.1, 0.1, 0.1]).unwrap();
-        store.insert("test-three", &vec![0.3, 0.2, 0.1]).unwrap();
+        store
+            .insert("test-one", &vec![0.0, 0.1, 0.2])
+            .await
+            .unwrap();
+        store
+            .insert("test-two", &vec![0.1, 0.1, 0.1])
+            .await
+            .unwrap();
+        store
+            .insert("test-three", &vec![0.3, 0.2, 0.1])
+            .await
+            .unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
         let _ = store.delete_all();
