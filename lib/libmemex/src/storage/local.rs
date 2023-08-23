@@ -26,7 +26,7 @@ pub struct HnswStore {
 
 #[async_trait]
 impl VectorStore for HnswStore {
-    async fn delete(&mut self, _: &str, _: Option<usize>) -> Result<(), VectorStoreError> {
+    async fn delete(&mut self, _: &str) -> Result<(), VectorStoreError> {
         // TODO: Find (or build) a replacement for hnsw_lib
         unimplemented!("Currently hnsw_lib does not support removing a single point")
     }
@@ -61,7 +61,7 @@ impl VectorStore for HnswStore {
 
     async fn insert(&mut self, data: &VectorData) -> Result<(), VectorStoreError> {
         let next_id = self._id_map.len() + 1;
-        self._id_map.insert(next_id, data.doc_id.to_string());
+        self._id_map.insert(next_id, data._id.to_string());
         self.hnsw.insert((&data.vector, next_id));
         // Naively save after each insert
         let _ = self.save(self.storage_path.clone());
@@ -172,33 +172,37 @@ mod test {
     use super::{HnswStore, VectorStore};
     use std::path::Path;
 
+    fn test_data() -> Vec<VectorData> {
+        vec![
+            VectorData {
+                _id: "test-one".into(),
+                task_id: "test-one".into(),
+                text: "".to_string(),
+                segment_id: 0,
+                vector: vec![0.0, 0.1, 0.2],
+            },
+            VectorData {
+                _id: "test-two".into(),
+                task_id: "test-two".into(),
+                text: "".to_string(),
+                segment_id: 0,
+                vector: vec![0.1, 0.1, 0.1],
+            },
+            VectorData {
+                _id: "test-three".into(),
+                task_id: "test-three".into(),
+                text: "".to_string(),
+                segment_id: 0,
+                vector: vec![0.3, 0.2, 0.1],
+            },
+        ]
+    }
+
     #[tokio::test]
     async fn test_hnsw() {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
-        store
-            .bulk_insert(&vec![
-                VectorData {
-                    doc_id: "test-one".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.0, 0.1, 0.2],
-                },
-                VectorData {
-                    doc_id: "test-two".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.1, 0.1, 0.1],
-                },
-                VectorData {
-                    doc_id: "test-three".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.3, 0.2, 0.1],
-                },
-            ])
-            .await
-            .unwrap();
+        store.bulk_insert(&test_data()).await.unwrap();
 
         let results = store.search(&vec![0.1, 0.1, 0.1], 3).await.unwrap();
         assert_eq!(results.len(), 3);
@@ -213,29 +217,7 @@ mod test {
     async fn test_save_load() {
         let path = Path::new("/tmp/vectortest");
         let mut store = HnswStore::new(&path);
-        store
-            .bulk_insert(&vec![
-                VectorData {
-                    doc_id: "test-one".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.0, 0.1, 0.2],
-                },
-                VectorData {
-                    doc_id: "test-two".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.1, 0.1, 0.1],
-                },
-                VectorData {
-                    doc_id: "test-three".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.3, 0.2, 0.1],
-                },
-            ])
-            .await
-            .unwrap();
+        store.bulk_insert(&test_data()).await.unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
 
@@ -248,29 +230,7 @@ mod test {
     async fn test_delete_all() {
         let path = Path::new("/tmp");
         let mut store = HnswStore::new(&path);
-        store
-            .bulk_insert(&vec![
-                VectorData {
-                    doc_id: "test-one".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.0, 0.1, 0.2],
-                },
-                VectorData {
-                    doc_id: "test-two".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.1, 0.1, 0.1],
-                },
-                VectorData {
-                    doc_id: "test-three".into(),
-                    text: "".to_string(),
-                    segment_id: 0,
-                    vector: vec![0.3, 0.2, 0.1],
-                },
-            ])
-            .await
-            .unwrap();
+        store.bulk_insert(&test_data()).await.unwrap();
 
         assert!(store.save("/tmp".into()).is_ok());
         let _ = store.delete_all().await;

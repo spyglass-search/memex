@@ -7,11 +7,16 @@ use serde::Serialize;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    // Associated task id
+    /// Associated task id
     pub task_id: String,
+    /// NOTE: Each segment of a full piece of text are split into many "documents"
+    /// And will each have a unique identifier.
     pub document_id: String,
+    /// The segment number (0, 1, 2, etc) of the content
     pub segment: i64,
+    /// The segmented content
     pub content: String,
+    /// Any metadata associated with this segment
     pub metadata: Option<Json>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

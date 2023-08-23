@@ -233,6 +233,7 @@ async fn _process_embeddings(
     // Persist vectors to db & vector store
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
+        // Create a unique identifier for this segment w/ the task_id & segment
         let doc_id =
             uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.id).as_bytes()).to_string();
 
@@ -244,7 +245,8 @@ async fn _process_embeddings(
         new_doc.insert(&txn).await?;
 
         vectors.push(VectorData {
-            doc_id,
+            _id: doc_id,
+            task_id: task.id.to_string(),
             text: embedding.content.clone(),
             segment_id: idx,
             vector: embedding.vector.clone(),

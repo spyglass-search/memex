@@ -22,7 +22,7 @@ pub struct OpenSearchConnectionConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct OpenSearchDoc {
-    doc_id: String,
+    task_id: String,
     segment_id: usize,
     text: String,
     embedding: Vec<f32>,
@@ -30,6 +30,7 @@ pub struct OpenSearchDoc {
 
 #[derive(Debug, Deserialize)]
 pub struct SearchHit {
+    _id: String,
     #[serde(rename(deserialize = "_score"))]
     score: f32,
     #[serde(rename(deserialize = "_source"))]
@@ -38,7 +39,7 @@ pub struct SearchHit {
 
 #[derive(Debug, Deserialize)]
 pub struct SearchHits {
-    hits: Vec<SearchHit>
+    hits: Vec<SearchHit>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,10 +55,6 @@ pub struct OpenSearchStore {
 }
 
 impl OpenSearchStore {
-    pub fn internal_id(doc_id: &str, segment_id: usize) -> String {
-        format!("{}-{}", doc_id, segment_id)
-    }
-
     pub async fn new(
         connect_url: &str,
         config: OpenSearchConnectionConfig,
@@ -113,26 +110,13 @@ impl OpenSearchStore {
 
 #[async_trait]
 impl VectorStore for OpenSearchStore {
-    async fn delete(&mut self, doc_id: &str, segment_id: Option<usize>) -> StoreResult<()> {
+    async fn delete(&mut self, id: &str) -> StoreResult<()> {
         // If only a doc_id is given, delete all segments with that doc_id.
-        if let Some(segment_id) = segment_id {
-            let internal_id = OpenSearchStore::internal_id(doc_id, segment_id);
-            self.client
-                .delete(opensearch::DeleteParts::IndexId(
-                    &self.index_name,
-                    &internal_id,
-                ))
-                .send()
-                .await
-                .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
-        } else {
-            self.client
-                .delete_by_query(opensearch::DeleteByQueryParts::Index(&[&self.index_name]))
-                .body(json!({ "query": { "match": { "doc_id": doc_id } } }))
-                .send()
-                .await
-                .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
-        }
+        self.client
+            .delete(opensearch::DeleteParts::IndexId(&self.index_name, id))
+            .send()
+            .await
+            .map_err(|err| VectorStoreError::DeleteError(err.to_string()))?;
 
         Ok(())
     }
@@ -147,17 +131,14 @@ impl VectorStore for OpenSearchStore {
     async fn bulk_insert(&mut self, data: &[VectorData]) -> StoreResult<()> {
         let mut ops = BulkOperations::new();
         for item in data {
-            let internal_id = Self::internal_id(&item.doc_id, item.segment_id);
             ops.push(
                 BulkOperation::index(json!({
-                    // Give a unique id per segment that is deterministic so we can
-                    // update the document in the future.
-                    "doc_id": item.doc_id,
+                    "task_id": item.task_id,
                     "segment_id": item.segment_id,
                     "text": item.text.to_string(),
                     "embedding": item.vector
                 }))
-                .id(internal_id),
+                .id(item._id.clone()),
             )
             .map_err(|err| VectorStoreError::InsertionError(err.to_string()))?;
         }
@@ -201,7 +182,7 @@ impl VectorStore for OpenSearchStore {
 
         let mut results = Vec::new();
         for hit in response.hits.hits {
-            results.push((hit.source.doc_id, hit.score))
+            results.push((hit._id, hit.score))
         }
 
         Ok(results)
@@ -308,7 +289,8 @@ mod test {
 
         store
             .insert(&VectorData {
-                doc_id: "test-one".into(),
+                _id: "test-one".into(),
+                task_id: "test-one".into(),
                 text: "".into(),
                 segment_id: 0,
                 vector: vec![1.5, 2.5, 3.5],
@@ -316,14 +298,13 @@ mod test {
             .await
             .unwrap();
 
-        let internal_id = &OpenSearchStore::internal_id("test-one", 0);
-        store._wait_for_doc(internal_id).await;
-        assert!(store.delete("test-one", Some(0)).await.is_ok());
+        store._wait_for_doc("test-one").await;
+        assert!(store.delete("test-one").await.is_ok());
 
         // Check to see if doc exists
         let resp = store
             .client
-            .exists(opensearch::ExistsParts::IndexId(index_name, &internal_id))
+            .exists(opensearch::ExistsParts::IndexId(index_name, "test-one"))
             .send()
             .await
             .unwrap();
@@ -334,7 +315,7 @@ mod test {
 
     #[tokio::test]
     async fn test_search() {
-        let index_name = "movies";
+        let index_name = "test-search";
         let config = OpenSearchConnectionConfig {
             index: index_name.to_string(),
             embedding_dimension: 3,
@@ -348,25 +329,29 @@ mod test {
         store
             .bulk_insert(&vec![
                 VectorData {
-                    doc_id: "test-one".into(),
+                    _id: "test-one".into(),
+                    task_id: "test-one".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![1.5, 2.5, 3.5],
                 },
                 VectorData {
-                    doc_id: "test-two".into(),
+                    _id: "test-two".into(),
+                    task_id: "test-two".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 3.5, 4.5],
                 },
                 VectorData {
-                    doc_id: "test-three".into(),
+                    _id: "test-three".into(),
+                    task_id: "test-three".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 3.5, 5.5],
                 },
                 VectorData {
-                    doc_id: "test-four".into(),
+                    _id: "test-four".into(),
+                    task_id: "test-four".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 0.5, 5.5],
@@ -376,8 +361,7 @@ mod test {
             .unwrap();
 
         // Wait til doc exists
-        let internal_id = OpenSearchStore::internal_id("test-four", 0);
-        store._wait_for_doc(&internal_id).await;
+        store._wait_for_doc("test-four").await;
 
         let results = store.search(&vec![2.0, 3.0, 4.0], 2).await.unwrap();
         assert_eq!(results.len(), 2);

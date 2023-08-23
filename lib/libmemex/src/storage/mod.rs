@@ -15,13 +15,16 @@ pub mod qdrant;
 
 #[derive(Debug, Clone)]
 pub struct VectorData {
-    /// Doc ID this belongs to
-    pub doc_id: String,
+    /// Internal ID used to identify this vector/segment
+    pub _id: String,
+    /// Task this was originally from. Identifies the initial content that this segment
+    /// represents.
+    pub task_id: String,
     /// Context represented by this vector
     pub text: String,
     /// Sentence embedding for this text content
     pub vector: Vec<f32>,
-    /// Segment ID internall for a document
+    /// Segment number of the content
     pub segment_id: usize,
 }
 
@@ -53,7 +56,7 @@ pub type StoreResult<T> = Result<T, VectorStoreError>;
 pub trait VectorStore {
     /// Delete a single document from the vector store.
     /// If a segment is given, that particular segment is deleted.
-    async fn delete(&mut self, doc_id: &str, segment: Option<usize>) -> StoreResult<()>;
+    async fn delete(&mut self, id: &str) -> StoreResult<()>;
     /// Delete ALL documents from the vector store.
     async fn delete_all(&mut self) -> StoreResult<()>;
     /// Bulk insert many documents at a time
