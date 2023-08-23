@@ -12,9 +12,11 @@ Note that if you're running on Apple silicon (M1/M2/etc.), it's best to run nati
 since Linux ARM builds are very finicky.
 
 ``` bash
-# Build and run the docker image
-> docker compose up
-# OR run natively in you have the rust toolchain installed.
+# Build and run the docker image. This will build & run memex as well as an opensearch
+# node for document storage + search.
+> docker-compose up
+# OR run natively in you have the rust toolchain installed. This uses the default file
+# based vector store instead of opensearch which may yield worse results.
 > cp .env.template .env
 > cargo run --release -p memex serve
 # If everything is running correctly, you should see something like:
@@ -22,6 +24,8 @@ since Linux ARM builds are very finicky.
 ```
 
 ## Add a document
+
+NOTE: If the `test` collection does not initially exist, it'll be created.
 
 ``` bash
 > curl http://localhost:8181/collections/test \
@@ -62,7 +66,8 @@ you've just added.
     -X GET \
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
 [{
-    "id": <internal_document_id>,
+    "_id": <internal_id>, // reference to this particular segment text.
+    "task_id": <task_id>, // The original document that this came from.
     "segment": <document section>,
     "content": <content block>,
     "score": <relevancy score>

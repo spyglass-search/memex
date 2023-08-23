@@ -2,7 +2,7 @@ use libmemex::db::create_connection_by_uri;
 use libmemex::db::document;
 use libmemex::db::queue::{self, check_for_jobs, Job};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
-use libmemex::vector::{get_vector_storage, VectorData, VectorStorage};
+use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
 use sea_orm::prelude::*;
 use sea_orm::Set;
 use sea_orm::TransactionTrait;
@@ -233,6 +233,7 @@ async fn _process_embeddings(
     // Persist vectors to db & vector store
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
+        // Create a unique identifier for this segment w/ the task_id & segment
         let doc_id =
             uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.id).as_bytes()).to_string();
 
@@ -244,7 +245,10 @@ async fn _process_embeddings(
         new_doc.insert(&txn).await?;
 
         vectors.push(VectorData {
-            doc_id,
+            _id: doc_id,
+            task_id: task.id.to_string(),
+            text: embedding.content.clone(),
+            segment_id: idx,
             vector: embedding.vector.clone(),
         });
     }

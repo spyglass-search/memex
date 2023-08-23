@@ -15,7 +15,8 @@ pub mod config;
 
 #[derive(Debug, Deserialize)]
 pub struct Document {
-    pub id: String,
+    pub _id: String,
+    pub task_id: String,
     pub segment: i64,
     pub content: String,
     pub score: f32,
@@ -59,7 +60,12 @@ fn build_prompt(
     } else {
         let extract = ctxt
             .iter()
-            .map(|doc| format!("doc_id: {}\ncontent: {}", doc.id, doc.content))
+            .map(|doc| {
+                format!(
+                    "_id: {}\ntask_id: {}\ncontent: {}",
+                    doc._id, doc.task_id, doc.content
+                )
+            })
             .collect::<Vec<String>>()
             .join("\n---\n");
         format!("Answer the question given the following extracted parts of a document:\n```\n{extract}\n```")
