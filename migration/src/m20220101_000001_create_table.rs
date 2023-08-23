@@ -9,22 +9,22 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Document::Table)
+                    .table(Documents::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Document::Id)
+                        ColumnDef::new(Documents::Id)
                             .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Document::TaskId).string().not_null())
-                    .col(ColumnDef::new(Document::DocumentId).string().not_null())
-                    .col(ColumnDef::new(Document::Segment).big_integer().not_null())
-                    .col(ColumnDef::new(Document::Content).string().not_null())
-                    .col(ColumnDef::new(Document::Metadata).json().null())
-                    .col(ColumnDef::new(Document::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Document::UpdatedAt).date_time().not_null())
+                    .col(ColumnDef::new(Documents::TaskId).string().not_null())
+                    .col(ColumnDef::new(Documents::DocumentId).string().not_null())
+                    .col(ColumnDef::new(Documents::Segment).big_integer().not_null())
+                    .col(ColumnDef::new(Documents::Content).string().not_null())
+                    .col(ColumnDef::new(Documents::Metadata).json().null())
+                    .col(ColumnDef::new(Documents::CreatedAt).date_time().not_null())
+                    .col(ColumnDef::new(Documents::UpdatedAt).date_time().not_null())
                     .to_owned(),
             )
             .await?;
@@ -67,7 +67,7 @@ impl MigrationTrait for Migration {
 
 /// Learn more at https://docs.rs/sea-query#iden
 #[derive(Iden)]
-enum Document {
+enum Documents {
     Table,
     Id,
     TaskId,

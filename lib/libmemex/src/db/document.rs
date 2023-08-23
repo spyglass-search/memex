@@ -3,7 +3,7 @@ use sea_orm::{ConnectionTrait, Set};
 use serde::Serialize;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Eq)]
-#[sea_orm(table_name = "document")]
+#[sea_orm(table_name = "documents")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
