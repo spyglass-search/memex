@@ -81,14 +81,15 @@ pub async fn handle_search_docs(
 
     // Grab the document data for each search result
     let mut results = Vec::new();
-    for (doc_id, score) in search_result.iter() {
+    for (internal_id, score) in search_result.iter() {
         if let Ok(Some(doc)) = document::Entity::find()
-            .filter(document::Column::DocumentId.eq(doc_id))
+            .filter(document::Column::DocumentId.eq(internal_id))
             .one(&db)
             .await
         {
             results.push(Document {
-                id: doc_id.to_string(),
+                _id: internal_id.to_string(),
+                task_id: doc.task_id,
                 segment: doc.segment,
                 content: doc.content,
                 score: *score,

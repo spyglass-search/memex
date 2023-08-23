@@ -20,6 +20,7 @@ pub struct OpenSearchConnectionConfig {
     pub embedding_dimension: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct OpenSearchDoc {
     task_id: String,

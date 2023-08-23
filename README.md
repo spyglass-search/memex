@@ -23,6 +23,8 @@ since Linux ARM builds are very finicky.
 
 ## Add a document
 
+NOTE: If the `test` collection does not initially exist, it'll be created.
+
 ``` bash
 > curl http://localhost:8181/collections/test \
     -H "Content-Type: application/json" \
@@ -62,7 +64,8 @@ you've just added.
     -X GET \
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
 [{
-    "id": <internal_document_id>,
+    "_id": <internal_id>, // reference to this particular segment text.
+    "task_id": <task_id>, // The original document that this came from.
     "segment": <document section>,
     "content": <content block>,
     "score": <relevancy score>
