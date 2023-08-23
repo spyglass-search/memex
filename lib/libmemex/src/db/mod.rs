@@ -15,7 +15,6 @@ pub async fn create_connection_by_uri(db_uri: &str) -> Result<DatabaseConnection
 
     let db = Database::connect(opt).await?;
 
-    #[cfg(debug_assertions)]
     Migrator::up(&db, None)
         .await
         .expect("Unable to run migrations");

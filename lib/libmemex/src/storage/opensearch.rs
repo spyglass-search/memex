@@ -29,6 +29,7 @@ pub struct OpenSearchDoc {
     embedding: Vec<f32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct SearchHit {
     _id: String,
