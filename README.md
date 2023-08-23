@@ -12,9 +12,11 @@ Note that if you're running on Apple silicon (M1/M2/etc.), it's best to run nati
 since Linux ARM builds are very finicky.
 
 ``` bash
-# Build and run the docker image
-> docker compose up
-# OR run natively in you have the rust toolchain installed.
+# Build and run the docker image. This will build & run memex as well as an opensearch
+# node for document storage + search.
+> docker-compose up
+# OR run natively in you have the rust toolchain installed. This uses the default file
+# based vector store instead of opensearch which may yield worse results.
 > cp .env.template .env
 > cargo run --release -p memex serve
 # If everything is running correctly, you should see something like:
