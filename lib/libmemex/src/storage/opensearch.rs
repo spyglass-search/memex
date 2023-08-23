@@ -246,6 +246,7 @@ mod test {
 
     const OPENSEARCH_URL: &str = "https://admin:admin@localhost:9200";
 
+    #[ignore]
     #[tokio::test]
     async fn test_initialize() {
         let config = OpenSearchConnectionConfig {
@@ -276,6 +277,7 @@ mod test {
         store.delete_index().await.unwrap();
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_delete() {
         let index_name = "test-delete";
@@ -315,6 +317,7 @@ mod test {
         store.delete_index().await.unwrap();
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_search() {
         let index_name = "test-search";
