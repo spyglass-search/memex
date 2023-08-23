@@ -1,9 +1,7 @@
-name: rust check/build
+name: build docker image
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 env:
