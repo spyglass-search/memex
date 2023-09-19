@@ -2,6 +2,7 @@ use migration::{Migrator, MigratorTrait};
 use sea_orm::{prelude::*, ConnectOptions, Database};
 
 pub mod document;
+pub mod embedding;
 pub mod queue;
 
 /// Creates a connection based on the database uri

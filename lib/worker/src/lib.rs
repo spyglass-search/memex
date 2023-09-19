@@ -1,6 +1,6 @@
 use libmemex::db::create_connection_by_uri;
-use libmemex::db::document;
 use libmemex::db::queue::{self, check_for_jobs, Job};
+use libmemex::db::{document, embedding};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
 use sea_orm::prelude::*;
@@ -189,8 +189,23 @@ pub async fn run_workers(
                                         }
                                     };
 
-                                    if let Err(err) = _process_embeddings(db, client, task.clone()).await {
-                                        log::error!("[job={}] Unable to process embeddings: {err}", task.id);
+                                    let doc = document::Entity::find()
+                                        .filter(document::Column::TaskId.eq(task.id))
+                                        .one(&db)
+                                        .await;
+
+                                    match doc {
+                                        Ok(Some(doc)) => {
+                                            if let Err(err) = _process_embeddings(db, client, &task, &doc).await {
+                                                log::error!("[job={}] Unable to process embeddings: {err}", task.id);
+                                            }
+                                        },
+                                        Ok(None) => {
+                                            log::error!("[job={}] No matching document found", task.id);
+                                        }
+                                        Err(err) => {
+                                            log::error!("[job={}] Unable to process embeddings: {err}", task.id);
+                                        }
                                     }
 
                                     if let Ok(mut limits) = limits.lock() {
@@ -214,14 +229,15 @@ pub async fn run_workers(
 async fn _process_embeddings(
     db: DatabaseConnection,
     client: VectorStorage,
-    task: queue::Model,
+    task: &queue::Model,
+    doc: &document::Model,
 ) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
     let model_config = ModelConfig::default();
 
     let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
     log::info!("[job={}] generating embeddings", task.id);
-    let embeddings = embedder.encode(task.payload.content).await?;
+    let embeddings = embedder.encode(task.payload.content.clone()).await?;
     log::info!(
         "[job={}] created {} embeddings in {}ms",
         task.id,
@@ -234,18 +250,18 @@ async fn _process_embeddings(
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
         // Create a unique identifier for this segment w/ the task_id & segment
-        let doc_id =
-            uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.id).as_bytes()).to_string();
+        let uuid = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", doc.uuid.clone()).as_bytes())
+            .to_string();
 
-        let mut new_doc = document::ActiveModel::new();
-        new_doc.task_id = Set(task.id.to_string());
-        new_doc.document_id = Set(doc_id.clone());
-        new_doc.segment = Set(idx as i64);
-        new_doc.content = Set(embedding.content.clone());
-        new_doc.insert(&txn).await?;
+        let mut new_seg = embedding::ActiveModel::new();
+        new_seg.uuid = Set(uuid);
+        new_seg.document_id = Set(doc.uuid.clone());
+        new_seg.segment = Set(idx as i64);
+        new_seg.content = Set(embedding.content.clone());
+        new_seg.insert(&txn).await?;
 
         vectors.push(VectorData {
-            _id: doc_id,
+            _id: doc.uuid.clone(),
             task_id: task.id.to_string(),
             text: embedding.content.clone(),
             segment_id: idx,

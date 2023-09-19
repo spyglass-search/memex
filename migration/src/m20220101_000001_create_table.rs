@@ -19,8 +19,7 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Documents::TaskId).string().not_null())
-                    .col(ColumnDef::new(Documents::DocumentId).string().not_null())
-                    .col(ColumnDef::new(Documents::Segment).big_integer().not_null())
+                    .col(ColumnDef::new(Documents::Uuid).string().not_null())
                     .col(ColumnDef::new(Documents::Content).string().not_null())
                     .col(ColumnDef::new(Documents::Metadata).json().null())
                     .col(ColumnDef::new(Documents::CreatedAt).date_time().not_null())
@@ -70,9 +69,8 @@ impl MigrationTrait for Migration {
 enum Documents {
     Table,
     Id,
+    Uuid,
     TaskId,
-    DocumentId,
-    Segment,
     Content,
     Metadata,
     CreatedAt,

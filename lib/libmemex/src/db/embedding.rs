@@ -2,21 +2,24 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{ConnectionTrait, Set};
 use serde::Serialize;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Eq)]
-#[sea_orm(table_name = "documents")]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize)]
+#[sea_orm(table_name = "embeddings")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    /// NOTE: Each segment of a full piece of text are split into many "documents"
-    /// And will each have a unique identifier.
-    #[sea_orm(indexed, unique)]
-    pub uuid: String,
-    /// Associated task id from the queue.
+    /// Document this belongs to
     #[sea_orm(indexed)]
-    pub task_id: i64,
-    /// The full text context of this document
+    pub document_id: String,
+    /// Unique ID for this embedded segment.
+    #[sea_orm(indexed)]
+    pub uuid: String,
+    /// The segment number (0, 1, 2, etc) of the content.
+    pub segment: i64,
+    /// The segmented content.
     pub content: String,
-    /// Any additional metadata associated with this document.
+    /// The embeddeding for this segment.
+    pub vector: Vec<f32>,
+    /// Any metadata associated with this segment
     pub metadata: Option<Json>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
@@ -24,25 +27,17 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::embedding::Entity")]
-    Embedding,
     #[sea_orm(
-        belongs_to = "super::queue::Entity",
-        from = "Column::TaskId",
-        to = "super::queue::Column::Id"
+        belongs_to = "super::document::Entity",
+        from = "Column::DocumentId",
+        to = "super::document::Column::Uuid"
     )]
-    Task,
+    Document,
 }
 
-impl Related<super::embedding::Entity> for Entity {
+impl Related<super::document::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Embedding.def()
-    }
-}
-
-impl Related<super::queue::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Task.def()
+        Relation::Document.def()
     }
 }
 

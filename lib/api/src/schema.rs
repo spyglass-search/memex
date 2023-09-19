@@ -28,9 +28,9 @@ impl SearchDocsRequest {
 }
 
 #[derive(Serialize)]
-pub struct Document {
+pub struct DocumentSegment {
     pub _id: String,
-    pub task_id: String,
+    pub document_id: String,
     pub segment: i64,
     pub content: String,
     pub score: f32,
@@ -38,7 +38,7 @@ pub struct Document {
 
 #[derive(Serialize)]
 pub struct SearchResult {
-    pub results: Vec<Document>,
+    pub results: Vec<DocumentSegment>,
 }
 
 #[derive(Serialize)]
