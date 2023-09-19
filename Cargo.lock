@@ -684,7 +684,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tera",
- "tokenizers",
+ "tokenizers 0.14.0",
  "tokio",
  "toml",
 ]
@@ -1045,7 +1045,16 @@ version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.3.7",
+]
+
+[[package]]
+name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
 ]
 
 [[package]]
@@ -1057,6 +1066,18 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1439,7 +1460,7 @@ dependencies = [
 [[package]]
 name = "ggml"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "ggml-sys",
  "memmap2",
@@ -1449,7 +1470,7 @@ dependencies = [
 [[package]]
 name = "ggml-sys"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "cc",
 ]
@@ -1619,6 +1640,22 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hf-hub"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca0a2d78bbd80fdb804b213f675d261eb87060571e1c389bcad8c24add066cf9"
+dependencies = [
+ "dirs 5.0.1",
+ "indicatif 0.17.6",
+ "native-tls",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "ureq",
+]
 
 [[package]]
 name = "hkdf"
@@ -2051,7 +2088,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror",
- "tokenizers",
+ "tokenizers 0.14.0",
  "tokio",
  "url",
  "uuid",
@@ -2083,7 +2120,7 @@ checksum = "57bcfdad1b858c2db7c38303a6d2ad4dfaf5eb53dfeb0910128b2c26d6158503"
 [[package]]
 name = "llm"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
  "llm-bloom",
@@ -2099,7 +2136,7 @@ dependencies = [
 [[package]]
 name = "llm-base"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "bytemuck",
  "ggml",
@@ -2112,14 +2149,14 @@ dependencies = [
  "serde",
  "serde_bytes",
  "thiserror",
- "tokenizers",
+ "tokenizers 0.13.4",
  "tracing",
 ]
 
 [[package]]
 name = "llm-bloom"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
 ]
@@ -2127,7 +2164,7 @@ dependencies = [
 [[package]]
 name = "llm-gpt2"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "bytemuck",
  "llm-base",
@@ -2136,7 +2173,7 @@ dependencies = [
 [[package]]
 name = "llm-gptj"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
 ]
@@ -2144,7 +2181,7 @@ dependencies = [
 [[package]]
 name = "llm-gptneox"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
 ]
@@ -2152,7 +2189,7 @@ dependencies = [
 [[package]]
 name = "llm-llama"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
  "tracing",
@@ -2161,7 +2198,7 @@ dependencies = [
 [[package]]
 name = "llm-mpt"
 version = "0.2.0-dev"
-source = "git+https://github.com/rustformers/llm.git?rev=bca64b00c936d649bb95c58993eff0bb43c4f541#bca64b00c936d649bb95c58993eff0bb43c4f541"
+source = "git+https://github.com/rustformers/llm.git?rev=84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec#84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec"
 dependencies = [
  "llm-base",
 ]
@@ -2619,6 +2656,12 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
+
+[[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "ordered-float"
@@ -3301,7 +3344,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8792cccdf842159ef04a35f247df68ccc42192e9a67e389e6cd0f1a83970a6a0"
 dependencies = [
  "cached-path",
- "dirs",
+ "dirs 4.0.0",
  "half",
  "lazy_static",
  "ordered-float",
@@ -4377,17 +4420,50 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokenizers"
-version = "0.13.3"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cf49017523bf0bc01c9966f172c5f120bbb7b96cccd1708772dd42e767fb9f5"
+checksum = "aea68938177975ab09da68552b720eac941779ff386baceaf77e0f5f9cea645f"
 dependencies = [
  "aho-corasick 0.7.20",
  "cached-path",
- "clap",
  "derive_builder",
- "dirs",
+ "dirs 4.0.0",
  "esaxx-rs",
  "getrandom 0.2.10",
+ "itertools 0.9.0",
+ "lazy_static",
+ "log",
+ "macro_rules_attribute",
+ "monostate",
+ "onig",
+ "paste",
+ "rand 0.8.5",
+ "rayon",
+ "rayon-cond",
+ "regex",
+ "regex-syntax 0.7.4",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "spm_precompiled",
+ "thiserror",
+ "unicode-normalization-alignments",
+ "unicode-segmentation",
+ "unicode_categories",
+]
+
+[[package]]
+name = "tokenizers"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12b515a66453a4d68f03398054f7204fd0dde6b93d3f20ea90b08025ab49b499"
+dependencies = [
+ "aho-corasick 0.7.20",
+ "clap",
+ "derive_builder",
+ "esaxx-rs",
+ "getrandom 0.2.10",
+ "hf-hub",
  "indicatif 0.15.0",
  "itertools 0.9.0",
  "lazy_static",
@@ -4400,8 +4476,7 @@ dependencies = [
  "rayon",
  "rayon-cond",
  "regex",
- "regex-syntax 0.6.29",
- "reqwest",
+ "regex-syntax 0.7.4",
  "serde",
  "serde_json",
  "spm_precompiled",
@@ -4852,6 +4927,7 @@ dependencies = [
  "base64 0.21.2",
  "flate2",
  "log",
+ "native-tls",
  "once_cell",
  "rustls",
  "rustls-webpki 0.100.1",

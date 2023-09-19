@@ -13,8 +13,8 @@ clap = { version = "4.0.32", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 colored = "2.0"
 indicatif = "0.17.5"
-llm = { git = "https://github.com/rustformers/llm.git", rev = "bca64b00c936d649bb95c58993eff0bb43c4f541" }
-tokenizers = "=0.13.3"
+llm = { git = "https://github.com/rustformers/llm.git", rev = "84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec" }
+tokenizers = "0.14"
 rand = "0.8.5"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }

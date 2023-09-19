@@ -97,7 +97,10 @@ async fn main() -> ExitCode {
         }
     };
 
-    println!("🤖 Using model @ {}", clippy_cfg.model.path.to_string_lossy());
+    println!(
+        "🤖 Using model @ {}",
+        clippy_cfg.model.path.to_string_lossy()
+    );
 
     match args.command {
         Command::Ask { question } => {
