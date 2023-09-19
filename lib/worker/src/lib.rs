@@ -248,6 +248,7 @@ async fn _process_embeddings(
         new_seg.document_id = Set(document.uuid.clone());
         new_seg.segment = Set(idx as i64);
         new_seg.content = Set(embedding.content.clone());
+        new_seg.vector = Set(embedding.vector.clone().into());
         new_seg.insert(&txn).await?;
 
         vectors.push(VectorData {

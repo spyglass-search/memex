@@ -18,7 +18,8 @@ pub struct Model {
     /// The segmented content.
     pub content: String,
     /// The embeddeding for this segment.
-    pub vector: Vec<f32>,
+    /// Stored as a JSON blob to suppport sqlite3
+    pub vector: Json,
     /// Any metadata associated with this segment
     pub metadata: Option<Json>,
     pub created_at: DateTimeUtc,

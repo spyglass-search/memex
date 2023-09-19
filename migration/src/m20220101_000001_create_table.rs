@@ -47,15 +47,23 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Documents::TaskId).integer().not_null())
-                    .col(ColumnDef::new(Documents::Uuid).string().not_null())
+                    .col(
+                        ColumnDef::new(Documents::Uuid)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
                     .col(ColumnDef::new(Documents::Content).string().not_null())
                     .col(ColumnDef::new(Documents::Metadata).json().null())
                     .col(ColumnDef::new(Documents::CreatedAt).date_time().not_null())
                     .col(ColumnDef::new(Documents::UpdatedAt).date_time().not_null())
                     .foreign_key(
-                        ForeignKey::create()
-                            .from(Queue::Table, Queue::Id)
-                            .to(Documents::Table, Documents::TaskId),
+                        ForeignKeyCreateStatement::new()
+                            .name("fk-documents-task_id-queue-id")
+                            .from_tbl(Documents::Table)
+                            .from_col(Documents::TaskId)
+                            .to_tbl(Queue::Table)
+                            .to_col(Queue::Id),
                     )
                     .to_owned(),
             )
