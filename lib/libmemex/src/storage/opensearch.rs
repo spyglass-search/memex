@@ -135,7 +135,7 @@ impl VectorStore for OpenSearchStore {
         for item in data {
             ops.push(
                 BulkOperation::index(json!({
-                    "task_id": item.task_id,
+                    "document_id": item.document_id,
                     "segment_id": item.segment_id,
                     "text": item.text.to_string(),
                     "embedding": item.vector
@@ -294,7 +294,7 @@ mod test {
         store
             .insert(&VectorData {
                 _id: "test-one".into(),
-                task_id: "test-one".into(),
+                document_id: "test-one".into(),
                 text: "".into(),
                 segment_id: 0,
                 vector: vec![1.5, 2.5, 3.5],
@@ -335,28 +335,28 @@ mod test {
             .bulk_insert(&vec![
                 VectorData {
                     _id: "test-one".into(),
-                    task_id: "test-one".into(),
+                    document_id: "test-one".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![1.5, 2.5, 3.5],
                 },
                 VectorData {
                     _id: "test-two".into(),
-                    task_id: "test-two".into(),
+                    document_id: "test-two".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 3.5, 4.5],
                 },
                 VectorData {
                     _id: "test-three".into(),
-                    task_id: "test-three".into(),
+                    document_id: "test-three".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 3.5, 5.5],
                 },
                 VectorData {
                     _id: "test-four".into(),
-                    task_id: "test-four".into(),
+                    document_id: "test-four".into(),
                     text: "".into(),
                     segment_id: 0,
                     vector: vec![2.5, 0.5, 5.5],

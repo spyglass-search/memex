@@ -2054,6 +2054,7 @@ dependencies = [
  "tokenizers",
  "tokio",
  "url",
+ "uuid",
 ]
 
 [[package]]

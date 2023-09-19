@@ -68,3 +68,17 @@ impl ActiveModelBehavior for ActiveModel {
         Ok(self)
     }
 }
+
+impl ActiveModel {
+    pub fn from_task(task: &super::queue::Model) -> Self {
+        let uuid = uuid::Uuid::new_v5(&crate::NAMESPACE, task.id.to_string().as_bytes());
+
+        Self {
+            uuid: Set(uuid.to_string()),
+            task_id: Set(task.id),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+            ..ActiveModelTrait::default()
+        }
+    }
+}

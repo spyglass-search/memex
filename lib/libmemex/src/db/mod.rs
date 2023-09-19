@@ -6,7 +6,10 @@ pub mod embedding;
 pub mod queue;
 
 /// Creates a connection based on the database uri
-pub async fn create_connection_by_uri(db_uri: &str) -> Result<DatabaseConnection, DbErr> {
+pub async fn create_connection_by_uri(
+    db_uri: &str,
+    run_migrations: bool,
+) -> Result<DatabaseConnection, DbErr> {
     // See https://www.sea-ql.org/SeaORM/docs/install-and-config/connection
     // for more connection options
     let mut opt = ConnectOptions::new(db_uri.to_owned());
@@ -15,10 +18,11 @@ pub async fn create_connection_by_uri(db_uri: &str) -> Result<DatabaseConnection
         .sqlx_logging(false);
 
     let db = Database::connect(opt).await?;
-
-    Migrator::up(&db, None)
-        .await
-        .expect("Unable to run migrations");
+    if run_migrations {
+        Migrator::up(&db, None)
+            .await
+            .expect("Unable to run migrations");
+    }
 
     Ok(db)
 }

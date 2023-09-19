@@ -176,21 +176,21 @@ mod test {
         vec![
             VectorData {
                 _id: "test-one".into(),
-                task_id: "test-one".into(),
+                document_id: "test-one".into(),
                 text: "".to_string(),
                 segment_id: 0,
                 vector: vec![0.0, 0.1, 0.2],
             },
             VectorData {
                 _id: "test-two".into(),
-                task_id: "test-two".into(),
+                document_id: "test-two".into(),
                 text: "".to_string(),
                 segment_id: 0,
                 vector: vec![0.1, 0.1, 0.1],
             },
             VectorData {
                 _id: "test-three".into(),
-                task_id: "test-three".into(),
+                document_id: "test-three".into(),
                 text: "".to_string(),
                 segment_id: 0,
                 vector: vec![0.3, 0.2, 0.1],

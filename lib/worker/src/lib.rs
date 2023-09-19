@@ -3,6 +3,7 @@ use libmemex::db::queue::{self, check_for_jobs, Job};
 use libmemex::db::{document, embedding};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
+use libmemex::NAMESPACE;
 use sea_orm::prelude::*;
 use sea_orm::Set;
 use sea_orm::TransactionTrait;
@@ -11,8 +12,6 @@ use tokio::{
     sync::{broadcast, mpsc},
     time::Duration,
 };
-
-pub const NAMESPACE: uuid::Uuid = uuid::uuid!("5fdfe40a-de2c-11ed-bfa7-00155deae876");
 
 #[derive(Debug, Clone)]
 pub enum AppShutdown {
@@ -46,7 +45,7 @@ impl WorkerInstanceLimits {
 pub type WorkerLimitMutex = Arc<Mutex<WorkerInstanceLimits>>;
 
 pub async fn start(db_uri: String) {
-    let db = match create_connection_by_uri(&db_uri).await {
+    let db = match create_connection_by_uri(&db_uri, false).await {
         Ok(db) => db,
         Err(err) => {
             log::error!("Unable to connect to db: {err}");
@@ -189,23 +188,8 @@ pub async fn run_workers(
                                         }
                                     };
 
-                                    let doc = document::Entity::find()
-                                        .filter(document::Column::TaskId.eq(task.id))
-                                        .one(&db)
-                                        .await;
-
-                                    match doc {
-                                        Ok(Some(doc)) => {
-                                            if let Err(err) = _process_embeddings(db, client, &task, &doc).await {
-                                                log::error!("[job={}] Unable to process embeddings: {err}", task.id);
-                                            }
-                                        },
-                                        Ok(None) => {
-                                            log::error!("[job={}] No matching document found", task.id);
-                                        }
-                                        Err(err) => {
-                                            log::error!("[job={}] Unable to process embeddings: {err}", task.id);
-                                        }
+                                    if let Err(err) = _process_embeddings(db, client, &task).await {
+                                        log::error!("[job={}] Unable to process embeddings: {err}", task.id);
                                     }
 
                                     if let Ok(mut limits) = limits.lock() {
@@ -230,7 +214,6 @@ async fn _process_embeddings(
     db: DatabaseConnection,
     client: VectorStorage,
     task: &queue::Model,
-    doc: &document::Model,
 ) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
     let model_config = ModelConfig::default();
@@ -245,24 +228,31 @@ async fn _process_embeddings(
         start.elapsed().as_millis()
     );
 
+    // Create a wrapper document w/ all the data from the task
+    let document = document::ActiveModel::from_task(task);
+    let document = document.insert(&db).await?;
+
     let txn = db.begin().await?;
     // Persist vectors to db & vector store
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
         // Create a unique identifier for this segment w/ the task_id & segment
-        let uuid = uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", doc.uuid.clone()).as_bytes())
-            .to_string();
+        let uuid = uuid::Uuid::new_v5(
+            &NAMESPACE,
+            format!("{}-{idx}", document.uuid.clone()).as_bytes(),
+        )
+        .to_string();
 
         let mut new_seg = embedding::ActiveModel::new();
-        new_seg.uuid = Set(uuid);
-        new_seg.document_id = Set(doc.uuid.clone());
+        new_seg.uuid = Set(uuid.clone());
+        new_seg.document_id = Set(document.uuid.clone());
         new_seg.segment = Set(idx as i64);
         new_seg.content = Set(embedding.content.clone());
         new_seg.insert(&txn).await?;
 
         vectors.push(VectorData {
-            _id: doc.uuid.clone(),
-            task_id: task.id.to_string(),
+            _id: uuid.clone(),
+            document_id: document.uuid.clone(),
             text: embedding.content.clone(),
             segment_id: idx,
             vector: embedding.vector.clone(),
