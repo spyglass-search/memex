@@ -25,3 +25,4 @@ thiserror = "1.0"
 tokenizers = "=0.13.3"
 tokio = { workspace = true }
 url = "2.4.0"
+uuid = { workspace = true }

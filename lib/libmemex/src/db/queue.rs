@@ -193,7 +193,7 @@ mod test {
 
     #[tokio::test]
     async fn test_enqueue_and_dequeue() {
-        let db = create_connection_by_uri("sqlite::memory:")
+        let db = create_connection_by_uri("sqlite::memory:", true)
             .await
             .expect("Unable to connect");
 

@@ -17,9 +17,8 @@ pub mod qdrant;
 pub struct VectorData {
     /// Internal ID used to identify this vector/segment
     pub _id: String,
-    /// Task this was originally from. Identifies the initial content that this segment
-    /// represents.
-    pub task_id: String,
+    /// Document this segment is originally from
+    pub document_id: String,
     /// Context represented by this vector
     pub text: String,
     /// Sentence embedding for this text content

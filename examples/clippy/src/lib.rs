@@ -16,7 +16,7 @@ pub mod config;
 #[derive(Debug, Deserialize)]
 pub struct Document {
     pub _id: String,
-    pub task_id: String,
+    pub document_id: String,
     pub segment: i64,
     pub content: String,
     pub score: f32,
@@ -62,8 +62,8 @@ fn build_prompt(
             .iter()
             .map(|doc| {
                 format!(
-                    "_id: {}\ntask_id: {}\ncontent: {}",
-                    doc._id, doc.task_id, doc.content
+                    "_id: {}\ndocument_id: {}\ncontent: {}",
+                    doc._id, doc.document_id, doc.content
                 )
             })
             .collect::<Vec<String>>()

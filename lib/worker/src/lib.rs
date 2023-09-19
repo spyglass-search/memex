@@ -1,8 +1,9 @@
 use libmemex::db::create_connection_by_uri;
-use libmemex::db::document;
 use libmemex::db::queue::{self, check_for_jobs, Job};
+use libmemex::db::{document, embedding};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
+use libmemex::NAMESPACE;
 use sea_orm::prelude::*;
 use sea_orm::Set;
 use sea_orm::TransactionTrait;
@@ -11,8 +12,6 @@ use tokio::{
     sync::{broadcast, mpsc},
     time::Duration,
 };
-
-pub const NAMESPACE: uuid::Uuid = uuid::uuid!("5fdfe40a-de2c-11ed-bfa7-00155deae876");
 
 #[derive(Debug, Clone)]
 pub enum AppShutdown {
@@ -46,7 +45,7 @@ impl WorkerInstanceLimits {
 pub type WorkerLimitMutex = Arc<Mutex<WorkerInstanceLimits>>;
 
 pub async fn start(db_uri: String) {
-    let db = match create_connection_by_uri(&db_uri).await {
+    let db = match create_connection_by_uri(&db_uri, false).await {
         Ok(db) => db,
         Err(err) => {
             log::error!("Unable to connect to db: {err}");
@@ -189,7 +188,7 @@ pub async fn run_workers(
                                         }
                                     };
 
-                                    if let Err(err) = _process_embeddings(db, client, task.clone()).await {
+                                    if let Err(err) = _process_embeddings(db, client, &task).await {
                                         log::error!("[job={}] Unable to process embeddings: {err}", task.id);
                                     }
 
@@ -214,14 +213,14 @@ pub async fn run_workers(
 async fn _process_embeddings(
     db: DatabaseConnection,
     client: VectorStorage,
-    task: queue::Model,
+    task: &queue::Model,
 ) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
     let model_config = ModelConfig::default();
 
     let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
     log::info!("[job={}] generating embeddings", task.id);
-    let embeddings = embedder.encode(task.payload.content).await?;
+    let embeddings = embedder.encode(task.payload.content.clone()).await?;
     log::info!(
         "[job={}] created {} embeddings in {}ms",
         task.id,
@@ -229,24 +228,32 @@ async fn _process_embeddings(
         start.elapsed().as_millis()
     );
 
+    // Create a wrapper document w/ all the data from the task
+    let document = document::ActiveModel::from_task(task);
+    let document = document.insert(&db).await?;
+
     let txn = db.begin().await?;
     // Persist vectors to db & vector store
     let mut vectors = Vec::new();
     for (idx, embedding) in embeddings.iter().enumerate() {
         // Create a unique identifier for this segment w/ the task_id & segment
-        let doc_id =
-            uuid::Uuid::new_v5(&NAMESPACE, format!("{}-{idx}", task.id).as_bytes()).to_string();
+        let uuid = uuid::Uuid::new_v5(
+            &NAMESPACE,
+            format!("{}-{idx}", document.uuid.clone()).as_bytes(),
+        )
+        .to_string();
 
-        let mut new_doc = document::ActiveModel::new();
-        new_doc.task_id = Set(task.id.to_string());
-        new_doc.document_id = Set(doc_id.clone());
-        new_doc.segment = Set(idx as i64);
-        new_doc.content = Set(embedding.content.clone());
-        new_doc.insert(&txn).await?;
+        let mut new_seg = embedding::ActiveModel::new();
+        new_seg.uuid = Set(uuid.clone());
+        new_seg.document_id = Set(document.uuid.clone());
+        new_seg.segment = Set(idx as i64);
+        new_seg.content = Set(embedding.content.clone());
+        new_seg.vector = Set(embedding.vector.clone().into());
+        new_seg.insert(&txn).await?;
 
         vectors.push(VectorData {
-            _id: doc_id,
-            task_id: task.id.to_string(),
+            _id: uuid.clone(),
+            document_id: document.uuid.clone(),
             text: embedding.content.clone(),
             segment_id: idx,
             vector: embedding.vector.clone(),

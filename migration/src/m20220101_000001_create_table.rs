@@ -9,29 +9,6 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Documents::Table)
-                    .if_not_exists()
-                    .col(
-                        ColumnDef::new(Documents::Id)
-                            .integer()
-                            .not_null()
-                            .auto_increment()
-                            .primary_key(),
-                    )
-                    .col(ColumnDef::new(Documents::TaskId).string().not_null())
-                    .col(ColumnDef::new(Documents::DocumentId).string().not_null())
-                    .col(ColumnDef::new(Documents::Segment).big_integer().not_null())
-                    .col(ColumnDef::new(Documents::Content).string().not_null())
-                    .col(ColumnDef::new(Documents::Metadata).json().null())
-                    .col(ColumnDef::new(Documents::CreatedAt).date_time().not_null())
-                    .col(ColumnDef::new(Documents::UpdatedAt).date_time().not_null())
-                    .to_owned(),
-            )
-            .await?;
-
-        manager
-            .create_table(
-                Table::create()
                     .table(Queue::Table)
                     .if_not_exists()
                     .col(
@@ -57,6 +34,41 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        manager
+            .create_table(
+                Table::create()
+                    .table(Documents::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Documents::Id)
+                            .integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Documents::TaskId).integer().not_null())
+                    .col(
+                        ColumnDef::new(Documents::Uuid)
+                            .string()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(Documents::Content).string().not_null())
+                    .col(ColumnDef::new(Documents::Metadata).json().null())
+                    .col(ColumnDef::new(Documents::CreatedAt).date_time().not_null())
+                    .col(ColumnDef::new(Documents::UpdatedAt).date_time().not_null())
+                    .foreign_key(
+                        ForeignKeyCreateStatement::new()
+                            .name("fk-documents-task_id-queue-id")
+                            .from_tbl(Documents::Table)
+                            .from_col(Documents::TaskId)
+                            .to_tbl(Queue::Table)
+                            .to_col(Queue::Id),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
         Ok(())
     }
 
@@ -70,9 +82,8 @@ impl MigrationTrait for Migration {
 enum Documents {
     Table,
     Id,
+    Uuid,
     TaskId,
-    DocumentId,
-    Segment,
     Content,
     Metadata,
     CreatedAt,

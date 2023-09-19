@@ -1,9 +1,9 @@
 use crate::{
-    schema::{self, Document, TaskResult},
+    schema::{self, DocumentSegment, TaskResult},
     ServerError,
 };
 use libmemex::{
-    db::{document, queue},
+    db::{embedding, queue},
     embedding::{ModelConfig, SentenceEmbedder},
     storage::get_vector_storage,
 };
@@ -82,16 +82,16 @@ pub async fn handle_search_docs(
     // Grab the document data for each search result
     let mut results = Vec::new();
     for (internal_id, score) in search_result.iter() {
-        if let Ok(Some(doc)) = document::Entity::find()
-            .filter(document::Column::DocumentId.eq(internal_id))
+        if let Ok(Some(segment)) = embedding::Entity::find()
+            .filter(embedding::Column::Uuid.eq(internal_id))
             .one(&db)
             .await
         {
-            results.push(Document {
+            results.push(DocumentSegment {
                 _id: internal_id.to_string(),
-                task_id: doc.task_id,
-                segment: doc.segment,
-                content: doc.content,
+                document_id: segment.document_id,
+                segment: segment.segment,
+                content: segment.content,
                 score: *score,
             });
         }

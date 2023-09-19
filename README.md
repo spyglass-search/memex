@@ -1,6 +1,6 @@
 # memex
 
-Super simple "memory" for LLM projects, semantic search, etc.
+Super simple "memory" and common functionality for LLM projects, semantic search, etc.
 
 <p align="center">
     <img src="docs/memex-in-action.gif">
@@ -55,6 +55,16 @@ using the `task_id` above like so:
 }
 ```
 
+Or if it's finished, something like so:
+```bash
+{
+    "task_id": 1,
+    "collection": "test"
+    "status": "Completed",
+    "created_at": "2023-09-19T00:00:00Z"
+}
+```
+
 One the task is shown as "Completed", you can now run a query against the doc(s)
 you've just added.
 
@@ -76,7 +86,10 @@ you've just added.
 
 ## Env variables
 
-- `HOST` & `PORT`:
+- `HOST`: Defaults to `127.0.0.1`
+- `PORT`: Defaults to `8181`
+- `DATABASE_CONNECTION`: Connection URI for either an sqlite or postgres database
+- `VECTOR_CONNECTION`: Either `hnsw://<path>` for a file-based vector store (but _very_ limited) or `opensearch+https://<uri>` for OpenSearch support.
 
 ## Examples
 
