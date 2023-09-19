@@ -27,7 +27,7 @@ pub struct OpenSearchConnectionConfig {
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct OpenSearchDoc {
-    task_id: String,
+    document_id: String,
     segment_id: usize,
     text: String,
     embedding: Vec<f32>,

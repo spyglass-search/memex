@@ -93,12 +93,12 @@ async fn main() -> ExitCode {
             }
         };
 
-        let db_uri = args.database_connection.expect("DATABASE_CONNECTION not set");
+        let db_uri = args
+            .database_connection
+            .expect("DATABASE_CONNECTION not set");
         let mut handles = Vec::new();
 
-        let _vector_store_uri = args
-            .vector_connection
-            .expect("VECTOR_CONNECTION not set");
+        let _vector_store_uri = args.vector_connection.expect("VECTOR_CONNECTION not set");
 
         if roles.contains(&Roles::Api) {
             let db_uri = db_uri.clone();

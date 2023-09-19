@@ -75,6 +75,7 @@ impl ActiveModel {
 
         Self {
             uuid: Set(uuid.to_string()),
+            content: Set(task.payload.content.clone()),
             task_id: Set(task.id),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),

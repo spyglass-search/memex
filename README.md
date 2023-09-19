@@ -1,6 +1,6 @@
 # memex
 
-Super simple "memory" for LLM projects, semantic search, etc.
+Super simple "memory" and common functionality for LLM projects, semantic search, etc.
 
 <p align="center">
     <img src="docs/memex-in-action.gif">
