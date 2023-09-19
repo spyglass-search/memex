@@ -77,7 +77,7 @@ you've just added.
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
 [{
     "_id": <internal_id>, // reference to this particular segment text.
-    "task_id": <task_id>, // The original document that this came from.
+    "document_id": <document UUID>, // The original document that this came from.
     "segment": <document section>,
     "content": <content block>,
     "score": <relevancy score>
