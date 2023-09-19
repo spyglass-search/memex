@@ -22,9 +22,9 @@ docker-build:
 		-t getspyglass/memex:latest .
 
 setup-examples:
-	mkdir -p resources
-ifeq (,$(wildcard ./resources/Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin))
-	wget -P resources https://huggingface.co/TheBloke/Wizard-Vicuna-7B-Uncensored-GGML/resolve/main/Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin
+	mkdir -p resources/models/Wizard-Vicuna
+ifeq (,$(wildcard ./resources/models/Wizard-Vicuna/Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin))
+	wget -P resources/models/Wizard-Vicuna https://huggingface.co/TheBloke/Wizard-Vicuna-7B-Uncensored-GGML/resolve/main/Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin
 else
 	@echo "-> Skipping model download, Wizard-Vicuna-7B-Uncensored.ggmlv3.q4_0.bin exists"
 endif

@@ -1,8 +1,10 @@
 prompt_template = "resources/templates/clippy_prompt.txt"
 
 [model]
-path = "resources/models/gpt4all/gpt4all-j-q4_0-ggjt.bin"
-model_type = "Gptj"
+# Download from https://huggingface.co/TheBloke/Wizard-Vicuna-7B-Uncensored-GGML/tree/main
+# And place in the same directory as this config file.
+path = "resources/models/LLaMa2/llama-2-7b-chat.ggmlv3.q4_1.bin"
+model_type = "Llama"
 prefer_mmap = false
 # The top K words by score are kept during sampling.
 top_k = 40

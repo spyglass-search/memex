@@ -179,14 +179,14 @@ pub fn segment_text(model_config: &ModelConfig, text: &str) -> Result<Vec<String
     let mut segments = Vec::new();
 
     let encoding = tokenizer.encode(text, false).unwrap();
-    let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
+    let decoded = match tokenizer.decode(encoding.get_ids(), true) {
         Ok(decoded) => decoded.replace(" ' ", "'"),
         Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
     };
 
     segments.push(decoded);
     for encoding in encoding.get_overflowing() {
-        let decoded = match tokenizer.decode(encoding.get_ids().to_vec(), true) {
+        let decoded = match tokenizer.decode(encoding.get_ids(), true) {
             Ok(decoded) => decoded,
             Err(_) => return Err(EmbeddingError::EncodingFailure(text.to_string())),
         };

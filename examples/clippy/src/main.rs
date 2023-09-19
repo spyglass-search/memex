@@ -31,6 +31,8 @@ enum Command {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
+    #[arg(short, long, default_value = "resources/config.vicuna.toml")]
+    config: String,
     #[arg(short, long, default_value = "http://127.0.0.1:8181")]
     memex_uri: String,
     #[command(subcommand)]
@@ -80,7 +82,7 @@ async fn main() -> ExitCode {
     }
 
     // load clippy config
-    let clippy_cfg: ClippyConfig = match File::open("resources/config.toml") {
+    let clippy_cfg: ClippyConfig = match File::open(args.config) {
         Ok(mut reader) => {
             let mut config = String::new();
             let _ = reader.read_to_string(&mut config);
@@ -94,6 +96,11 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    println!(
+        "🤖 Using model @ {}",
+        clippy_cfg.model.path.to_string_lossy()
+    );
 
     match args.command {
         Command::Ask { question } => {
@@ -189,7 +196,9 @@ async fn handle_ask_cmd(
         Vec::new()
     };
 
-    clippy_say(&format!("found {} relevant segments", results.len()));
+    if use_memory {
+        clippy_say(&format!("found {} relevant segments", results.len()));
+    }
 
     // Create a channel to to receive events
     let (sender, receiver) = mpsc::unbounded_channel::<LlmEvent>();
