@@ -102,6 +102,8 @@ For any of these examples, make sure you have `memex` running in the background.
 ``` bash
 # In a different terminal, run memex
 > cargo run --release -p memex serve
+# Make sure the LLM model is downloaded
+> make setup-examples
 # In your main terminal
 > cd examples/clippy
 # NOTE: there is no duplicate detection so running this twice will add the file twice.

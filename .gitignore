@@ -1,5 +1,5 @@
 .env
 /target
 /data
-/resources/*.bin
+/resources/models/*
 /**/target
