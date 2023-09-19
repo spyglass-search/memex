@@ -21,6 +21,10 @@ const LIB_LOG_LEVEL: &str = "memex=INFO";
 pub struct Args {
     #[command(subcommand)]
     command: Command,
+    #[clap(long, value_parser, value_name = "DATABASE_CONNECTION", env)]
+    database_connection: Option<String>,
+    #[clap(long, value_parser, value_name = "VECTOR_CONNECTION", env)]
+    vector_connection: Option<String>,
 }
 
 #[derive(Debug, Display, Clone, PartialEq, EnumString)]
@@ -89,8 +93,12 @@ async fn main() -> ExitCode {
             }
         };
 
-        let db_uri = std::env::var("DATABASE_CONNECTION").expect("DATABASE_CONNECTION not set");
+        let db_uri = args.database_connection.expect("DATABASE_CONNECTION not set");
         let mut handles = Vec::new();
+
+        let _vector_store_uri = args
+            .vector_connection
+            .expect("VECTOR_CONNECTION not set");
 
         if roles.contains(&Roles::Api) {
             let db_uri = db_uri.clone();

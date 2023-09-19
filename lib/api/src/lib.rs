@@ -6,7 +6,7 @@ use std::{convert::Infallible, net::Ipv4Addr};
 use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
-pub mod filters;
+pub mod endpoints;
 pub mod handlers;
 pub mod schema;
 use schema::ErrorMessage;
@@ -70,9 +70,8 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
         .allow_headers(["Authorization", "Content-Type"]);
 
     let filters = health_check()
-        .or(filters::build(&db_connection))
+        .or(endpoints::build(&db_connection).with(warp::trace::request()))
         .with(cors)
-        .with(warp::trace::request())
         .recover(handle_rejection);
 
     let (_addr, handle) =

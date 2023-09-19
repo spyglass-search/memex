@@ -13,6 +13,10 @@ use serde::Deserialize;
 use serde_json::json;
 use url::Url;
 
+pub enum SearchFilter {
+    Phrase(String),
+}
+
 #[derive(Default)]
 pub struct OpenSearchConnectionConfig {
     pub credentials: Option<Credentials>,

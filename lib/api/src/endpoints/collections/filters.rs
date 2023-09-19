@@ -1,20 +1,11 @@
 use sea_orm::DatabaseConnection;
-use serde::de::DeserializeOwned;
 use warp::Filter;
 
+use crate::endpoints::{json_body, LIMIT_10_MB, LIMIT_1_MB};
 use crate::handlers;
 use crate::{schema, with_db};
 
-const LIMIT_1_MB: u64 = 1000 * 1024;
-const LIMIT_10_MB: u64 = 10 * LIMIT_1_MB;
-
-pub fn json_body<T: std::marker::Send + DeserializeOwned>(
-    limit: u64,
-) -> impl Filter<Extract = (T,), Error = warp::Rejection> + Clone {
-    warp::body::content_length_limit(limit).and(warp::body::json())
-}
-
-pub fn add_document(
+fn add_document(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path!("collections" / String)
@@ -24,14 +15,14 @@ pub fn add_document(
         .and_then(handlers::handle_add_document)
 }
 
-pub fn delete_collection(
-) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+fn delete_collection() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
+{
     warp::path!("collections" / String)
         .and(warp::delete())
         .and_then(handlers::handle_delete_collection)
 }
 
-pub fn search_docs(
+fn search_docs(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path!("collections" / String / "search")
@@ -41,20 +32,11 @@ pub fn search_docs(
         .and_then(handlers::handle_search_docs)
 }
 
-pub fn check_task(
-    db: &DatabaseConnection,
-) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("tasks" / i64)
-        .and(warp::get())
-        .and(with_db(db.clone()))
-        .and_then(handlers::handle_check_task)
-}
-
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     add_document(db)
         .or(delete_collection())
         .or(search_docs(db))
-        .or(check_task(db))
+        .boxed()
 }
