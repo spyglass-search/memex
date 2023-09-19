@@ -29,6 +29,11 @@ impl MigrationTrait for Migration {
                         .col(ColumnDef::new(Embeddings::Metadata).json().null())
                         .col(ColumnDef::new(Embeddings::CreatedAt).date_time().not_null())
                         .col(ColumnDef::new(Embeddings::UpdatedAt).date_time().not_null())
+                        .foreign_key(
+                            ForeignKey::create()
+                                .from(Documents::Table, Documents::Id)
+                                .to(Embeddings::Table, Embeddings::DocumentId),
+                        )
                         .to_owned(),
                 )
                 .await?;
@@ -57,6 +62,11 @@ impl MigrationTrait for Migration {
                         .col(ColumnDef::new(Embeddings::Metadata).json().null())
                         .col(ColumnDef::new(Embeddings::CreatedAt).date_time().not_null())
                         .col(ColumnDef::new(Embeddings::UpdatedAt).date_time().not_null())
+                        .foreign_key(
+                            ForeignKey::create()
+                                .from(Documents::Table, Documents::Id)
+                                .to(Embeddings::Table, Embeddings::DocumentId),
+                        )
                         .to_owned(),
                 )
                 .await?;
@@ -83,4 +93,10 @@ enum Embeddings {
     Metadata,
     CreatedAt,
     UpdatedAt,
+}
+
+#[derive(Iden)]
+enum Documents {
+    Table,
+    Id,
 }
