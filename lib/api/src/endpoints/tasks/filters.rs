@@ -1,7 +1,8 @@
 use sea_orm::DatabaseConnection;
 use warp::Filter;
 
-use crate::{handlers, with_db};
+use super::handlers;
+use crate::with_db;
 
 pub fn build(
     db: &DatabaseConnection,

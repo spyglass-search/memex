@@ -1,8 +1,8 @@
 use sea_orm::DatabaseConnection;
 use warp::Filter;
 
+use super::handlers;
 use crate::endpoints::{json_body, LIMIT_10_MB, LIMIT_1_MB};
-use crate::handlers;
 use crate::{schema, with_db};
 
 fn add_document(

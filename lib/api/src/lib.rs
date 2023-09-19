@@ -7,7 +7,6 @@ use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
 pub mod endpoints;
-pub mod handlers;
 pub mod schema;
 use schema::ErrorMessage;
 
