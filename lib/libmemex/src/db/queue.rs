@@ -19,6 +19,15 @@ pub enum JobStatus {
     Failed,
 }
 
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
+#[sea_orm(rs_type = "String", db_type = "String(None)")]
+pub enum TaskType {
+    #[sea_orm(string_value = "Embedding")]
+    Embedding,
+    #[sea_orm(string_value = "Summarize")]
+    Summarize,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
 pub struct TaskPayload {
     pub content: String,
@@ -48,6 +57,8 @@ pub struct Model {
     pub id: i64,
     pub collection: String,
     pub payload: TaskPayload,
+    /// Type of task
+    pub task_type: TaskType,
     /// Task status.
     pub status: JobStatus,
     /// If this failed, the reason for the failure
@@ -194,13 +205,12 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
 
 #[cfg(test)]
 mod test {
-    use sea_orm::EntityTrait;
-
     use super::{enqueue, Entity};
     use crate::db::{
         create_connection_by_uri,
         queue::{check_for_jobs, JobStatus},
     };
+    use sea_orm::EntityTrait;
 
     #[tokio::test]
     async fn test_enqueue_and_dequeue() {
