@@ -1,7 +1,7 @@
 use libmemex::db::create_connection_by_uri;
 use libmemex::db::queue::{self, check_for_jobs, Job, TaskType};
 use libmemex::db::{document, embedding};
-use libmemex::embedding::{ModelConfig, SentenceEmbedder};
+use libmemex::llm::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
 use libmemex::NAMESPACE;
 use sea_orm::prelude::*;

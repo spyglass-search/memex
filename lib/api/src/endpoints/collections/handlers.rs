@@ -4,7 +4,7 @@ use crate::{
 };
 use libmemex::{
     db::{embedding, queue},
-    embedding::{ModelConfig, SentenceEmbedder},
+    llm::embedding::{ModelConfig, SentenceEmbedder},
     storage::get_vector_storage,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
