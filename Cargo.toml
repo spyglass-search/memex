@@ -6,6 +6,7 @@ members = [
 
     "lib/api",
     "lib/libmemex",
+    "lib/sherpa",
     "lib/worker",
 
     "examples/clippy"
