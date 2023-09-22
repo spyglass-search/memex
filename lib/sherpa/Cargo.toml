@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 async-trait = { workspace = true }
 llm = { git = "https://github.com/rustformers/llm.git", rev = "84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec" }
+llm-base = { git = "https://github.com/rustformers/llm.git", rev = "84800b02a7a96f62c0c9c03a38c36cb23bf4b2ec" }
 log = { workspace = true }
 rand = "0.8.5"
 rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
