@@ -1,19 +1,17 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 use handlebars::RenderError;
 use serde::Serialize;
 
 use super::openai::ChatMessage;
 
-pub fn build_prompt<T>(template_path: PathBuf, data: &T) -> Result<String, RenderError>
+pub fn build_prompt<T>(template: &str, data: &T) -> Result<String, RenderError>
 where
     T: Serialize,
 {
     let mut reg = handlebars::Handlebars::new();
     reg.register_escape_fn(handlebars::no_escape);
-
-    let template = std::fs::read_to_string(template_path).expect("Invalid template path");
-    reg.render_template(&template, data)
+    reg.render_template(template, data)
 }
 
 pub fn quick_question(user_request: &str) -> Vec<ChatMessage> {
@@ -40,7 +38,7 @@ pub fn json_schema_extraction(
         ChatMessage::new("user", input_data),
         ChatMessage::new(
             "user",
-            &build_prompt("prompts/json_schema/prompt.txt".into(), &data).unwrap(),
+            &build_prompt(include_str!("../../prompts/json_schema/prompt.txt"), &data).unwrap(),
         ),
     ]
 }

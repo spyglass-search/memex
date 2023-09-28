@@ -20,7 +20,7 @@ pub fn build(
     db: &DatabaseConnection,
     llm: &OpenAIClient,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    actions::filters::build(llm)
+    actions::filters::build(llm, db)
         .or(collections::filters::build(db))
         .or(tasks::filters::build(db))
 }

@@ -17,13 +17,15 @@ pub enum OpenAIModel {
     GPT35,
     // Same capabilities as the standard gpt-3.5-turbo model but with 4 times the context
     #[strum(serialize = "gpt-3.5-turbo-16k")]
-    GPT3516K,
+    GPT35_16K,
     // Snapshot of gpt-3.5-turbo from June 13th 2023 with function calling data.
     // Unlike gpt-3.5-turbo, this model will not receive updates, and will be deprecated
     // 3 months after a new version is released.
     // Supports new functions
     #[strum(serialize = "gpt-3.5-turbo-0613")]
-    GPT350613,
+    GPT35_0613,
+    #[strum(serialize = "gpt-4")]
+    GPT4_8K,
 }
 
 #[derive(Debug, Error)]

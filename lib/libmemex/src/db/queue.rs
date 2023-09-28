@@ -30,6 +30,17 @@ pub struct TaskError {
     pub msg: String,
 }
 
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
+#[sea_orm(rs_type = "String", db_type = "String(None)")]
+pub enum TaskType {
+    #[sea_orm(string_value = "Ingest")]
+    Ingest,
+    #[sea_orm(string_value = "Extract")]
+    Extract,
+    #[sea_orm(string_value = "Summarize")]
+    Summarize,
+}
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Eq)]
 #[sea_orm(table_name = "queue")]
 pub struct Model {
