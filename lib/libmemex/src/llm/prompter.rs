@@ -16,6 +16,13 @@ where
     reg.render_template(&template, data)
 }
 
+pub fn quick_question(user_request: &str) -> Vec<ChatMessage> {
+    vec![
+        ChatMessage::new("system", "You are a helpful assistant"),
+        ChatMessage::new("user", user_request),
+    ]
+}
+
 pub fn json_schema_extraction(
     input_data: &str,
     user_request: &str,

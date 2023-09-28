@@ -110,6 +110,7 @@ async fn check_api_error(response: Response) -> OpenAIError {
     }
 }
 
+#[derive(Clone)]
 pub struct OpenAIClient {
     client: reqwest::Client,
 }

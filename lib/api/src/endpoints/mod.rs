@@ -1,3 +1,4 @@
+use libmemex::llm::openai::OpenAIClient;
 use sea_orm::DatabaseConnection;
 use serde::de::DeserializeOwned;
 use warp::Filter;
@@ -17,8 +18,9 @@ pub fn json_body<T: std::marker::Send + DeserializeOwned>(
 
 pub fn build(
     db: &DatabaseConnection,
+    llm: &OpenAIClient,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    actions::filters::build()
+    actions::filters::build(llm)
         .or(collections::filters::build(db))
         .or(tasks::filters::build(db))
 }
