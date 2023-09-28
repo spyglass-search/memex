@@ -28,12 +28,12 @@ pub fn json_schema_extraction(
     vec![
         ChatMessage::new(
             "system",
-            include_str!("prompts/json_schema/system_message.txt"),
+            include_str!("../../prompts/json_schema/system.txt"),
         ),
         ChatMessage::new("user", input_data),
         ChatMessage::new(
             "user",
-            &build_prompt("src/llm/prompts/json_schema/prompt.txt".into(), &data).unwrap(),
+            &build_prompt("prompts/json_schema/prompt.txt".into(), &data).unwrap(),
         ),
     ]
 }

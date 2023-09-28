@@ -176,9 +176,7 @@ impl OpenAIClient {
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, env::current_dir};
-
-    use crate::llm::prompter::{build_prompt, json_schema_extraction};
+    use crate::llm::prompter::json_schema_extraction;
 
     use super::{ChatMessage, OpenAIClient, OpenAIModel};
 
