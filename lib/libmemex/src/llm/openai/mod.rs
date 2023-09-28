@@ -178,7 +178,7 @@ impl OpenAIClient {
 mod test {
     use std::{collections::HashMap, env::current_dir};
 
-    use crate::llm::prompter::build_prompt;
+    use crate::llm::prompter::{build_prompt, json_schema_extraction};
 
     use super::{ChatMessage, OpenAIClient, OpenAIModel};
 
@@ -203,31 +203,11 @@ mod test {
         dotenv::dotenv().ok();
         let client = OpenAIClient::new(&std::env::var("OPENAI_API_KEY").unwrap());
 
-        let mut data: HashMap<String, String> = HashMap::new();
-        data.insert(
-            "user_request".to_string(),
-            "extract the sentiment and complaints from this review".to_string(),
+        let msgs = json_schema_extraction(
+            include_str!("../../../../../fixtures/sample_yelp_review.txt"),
+            "extract the sentiment and complaints from this review",
+            include_str!("../../../../../fixtures/sample_json_schema.json"),
         );
-        data.insert(
-            "json_schema".to_string(),
-            include_str!("../../../../../fixtures/sample_json_schema.json").to_string(),
-        );
-
-        dbg!(&current_dir());
-        let msgs = vec![
-            ChatMessage::new(
-                "system",
-                include_str!("../prompts/json_schema/system_message.txt"),
-            ),
-            ChatMessage::new(
-                "user",
-                include_str!("../../../../../fixtures/sample_yelp_review.txt"),
-            ),
-            ChatMessage::new(
-                "user",
-                &build_prompt("src/llm/prompts/json_schema/prompt.txt".into(), &data).unwrap(),
-            ),
-        ];
 
         let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
         dbg!(&resp);

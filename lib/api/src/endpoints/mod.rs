@@ -2,6 +2,7 @@ use sea_orm::DatabaseConnection;
 use serde::de::DeserializeOwned;
 use warp::Filter;
 
+mod actions;
 mod collections;
 mod tasks;
 
@@ -17,5 +18,7 @@ pub fn json_body<T: std::marker::Send + DeserializeOwned>(
 pub fn build(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    collections::filters::build(db).or(tasks::filters::build(db))
+    actions::filters::build()
+        .or(collections::filters::build(db))
+        .or(tasks::filters::build(db))
 }

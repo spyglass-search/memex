@@ -12,6 +12,8 @@ use schema::ErrorMessage;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
+    #[error("Client request error: {0}")]
+    ClientRequestError(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] sea_orm::DbErr),
     #[error("Server error: {0}")]
