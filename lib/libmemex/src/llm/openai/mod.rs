@@ -1,4 +1,4 @@
-use reqwest::{Response, StatusCode, header};
+use reqwest::{header, Response, StatusCode};
 use serde::Serialize;
 use strum_macros::{AsRefStr, Display};
 use thiserror::Error;
@@ -58,7 +58,10 @@ pub struct ChatMessage {
 
 impl ChatMessage {
     pub fn new(role: &str, content: &str) -> Self {
-        Self { role: role.to_string(), content: content.to_string() }
+        Self {
+            role: role.to_string(),
+            content: content.to_string(),
+        }
     }
 }
 
@@ -108,16 +111,19 @@ async fn check_api_error(response: Response) -> OpenAIError {
 }
 
 pub struct OpenAIClient {
-    client: reqwest::Client
+    client: reqwest::Client,
 }
 
 impl OpenAIClient {
     pub fn new(api_key: &str) -> Self {
         let mut headers = header::HeaderMap::new();
-        headers.insert(header::CONTENT_TYPE, header::HeaderValue::from_static("application/json"));
+        headers.insert(
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_static("application/json"),
+        );
         headers.insert(
             header::AUTHORIZATION,
-            header::HeaderValue::from_str(&format!("Bearer {api_key}")).expect("Invalid api_key")
+            header::HeaderValue::from_str(&format!("Bearer {api_key}")).expect("Invalid api_key"),
         );
 
         let client = reqwest::Client::builder()
@@ -125,9 +131,7 @@ impl OpenAIClient {
             .build()
             .expect("Unable to build HTTP client");
 
-        Self {
-            client
-        }
+        Self { client }
     }
 
     pub async fn chat_completion(
@@ -142,7 +146,8 @@ impl OpenAIClient {
         );
 
         let request_body = CompletionRequest::new(model, msgs);
-        let response = self.client
+        let response = self
+            .client
             .post(&"https://api.openai.com/v1/chat/completions".to_string())
             .json(&request_body)
             .send()
@@ -171,6 +176,10 @@ impl OpenAIClient {
 
 #[cfg(test)]
 mod test {
+    use std::{collections::HashMap, env::current_dir};
+
+    use crate::llm::prompter::build_prompt;
+
     use super::{ChatMessage, OpenAIClient, OpenAIModel};
 
     #[ignore]
@@ -181,6 +190,43 @@ mod test {
         let msgs = vec![
             ChatMessage::new("system", "You are a helpful assistant"),
             ChatMessage::new("user", "Who won the world series in 2020?"),
+        ];
+
+        let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
+        dbg!(&resp);
+        assert!(resp.is_ok());
+    }
+
+    #[ignore]
+    #[tokio::test]
+    pub async fn test_json_prompting() {
+        dotenv::dotenv().ok();
+        let client = OpenAIClient::new(&std::env::var("OPENAI_API_KEY").unwrap());
+
+        let mut data: HashMap<String, String> = HashMap::new();
+        data.insert(
+            "user_request".to_string(),
+            "extract the sentiment and complaints from this review".to_string(),
+        );
+        data.insert(
+            "json_schema".to_string(),
+            include_str!("../../../../../fixtures/sample_json_schema.json").to_string(),
+        );
+
+        dbg!(&current_dir());
+        let msgs = vec![
+            ChatMessage::new(
+                "system",
+                include_str!("../prompts/json_schema/system_message.txt"),
+            ),
+            ChatMessage::new(
+                "user",
+                include_str!("../../../../../fixtures/sample_yelp_review.txt"),
+            ),
+            ChatMessage::new(
+                "user",
+                &build_prompt("src/llm/prompts/json_schema/prompt.txt".into(), &data).unwrap(),
+            ),
         ];
 
         let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
