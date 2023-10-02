@@ -60,6 +60,8 @@ pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
 }
 
 pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
+    log::info!("starting api server @ {}:{}", host, port);
+
     // Attempt to connect to db
     let db_connection = create_connection_by_uri(&db_uri, true)
         .await
@@ -72,10 +74,11 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
-    let filters = health_check()
-        .or(endpoints::build(&db_connection, &llm_client).with(warp::trace::request()))
-        .with(cors)
-        .recover(handle_rejection);
+    let api = warp::path("api")
+        .and(endpoints::build(&db_connection, &llm_client))
+        .with(warp::trace::request());
+
+    let filters = health_check().or(api).with(cors).recover(handle_rejection);
 
     let (_addr, handle) =
         warp::serve(filters).bind_with_graceful_shutdown((host, port), async move {

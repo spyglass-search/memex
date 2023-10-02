@@ -40,7 +40,7 @@ pub async fn handle_extract(
 
     Ok(warp::reply::json(&ApiResponse::success(
         &time.elapsed(),
-        Some(val),
+        Some(serde_json::json!({ "jsonResponse": val })),
     )))
 }
 
