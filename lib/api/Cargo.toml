@@ -10,6 +10,7 @@ chrono = { workspace = true }
 dotenv = { workspace = true }
 dotenv_codegen = { workspace = true }
 log = { workspace = true }
+jsonschema = "0.17.1"
 sea-orm = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

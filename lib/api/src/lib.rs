@@ -1,5 +1,5 @@
 use dotenv_codegen::dotenv;
-use libmemex::db::create_connection_by_uri;
+use libmemex::{db::create_connection_by_uri, llm::openai::OpenAIClient};
 use sea_orm::DatabaseConnection;
 use serde_json::json;
 use std::{convert::Infallible, net::Ipv4Addr};
@@ -12,6 +12,8 @@ use schema::ErrorMessage;
 
 #[derive(Error, Debug)]
 pub enum ServerError {
+    #[error("Client request error: {0}")]
+    ClientRequestError(String),
     #[error("Database error: {0}")]
     DatabaseError(#[from] sea_orm::DbErr),
     #[error("Server error: {0}")]
@@ -63,13 +65,15 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
         .await
         .unwrap_or_else(|err| panic!("Unable to connect to database: {} - {err}", db_uri));
 
+    let llm_client =
+        OpenAIClient::new(&std::env::var("OPENAI_API_KEY").expect("OpenAI API key not set"));
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
     let filters = health_check()
-        .or(endpoints::build(&db_connection).with(warp::trace::request()))
+        .or(endpoints::build(&db_connection, &llm_client).with(warp::trace::request()))
         .with(cors)
         .recover(handle_rejection);
 
@@ -88,4 +92,10 @@ pub fn with_db(
     db: DatabaseConnection,
 ) -> impl Filter<Extract = (DatabaseConnection,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db.clone())
+}
+
+pub fn with_llm(
+    llm: OpenAIClient,
+) -> impl Filter<Extract = (OpenAIClient,), Error = std::convert::Infallible> + Clone {
+    warp::any().map(move || llm.clone())
 }

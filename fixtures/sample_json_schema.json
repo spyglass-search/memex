@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "sentiment": {
+        "type": "array",
+        "items": {
+            "type": "string",
+            "enum": [
+            "happy",
+            "satisfied",
+            "dissatisfied",
+            "angry"
+            ]
+        }
+        },
+        "complaints": {
+        "type": "array",
+        "items": {
+            "type": "string"
+        }
+        }
+    },
+    "required": [
+        "complaints",
+        "sentiment"
+    ]
+}

@@ -1,4 +1,4 @@
-.PHONY: build build-all fmt clippy docker-build setup-examples
+.PHONY: build build-all fmt check clippy docker-build setup-examples
 .default: build
 
 GIT_HASH ?= $(shell git rev-parse --short HEAD)
@@ -12,6 +12,7 @@ build-all:
 fmt:
 	cargo fmt --all
 
+check: clippy
 clippy: fmt
 	cargo clippy --all
 

@@ -19,6 +19,20 @@ pub enum JobStatus {
     Failed,
 }
 
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
+#[sea_orm(rs_type = "String", db_type = "String(None)")]
+pub enum TaskType {
+    /// Ingesting a document
+    #[sea_orm(string_value = "Ingest")]
+    Ingest,
+    /// Extracting data from content
+    #[sea_orm(string_value = "Extract")]
+    Extract,
+    /// Summarizing content
+    #[sea_orm(string_value = "Summarize")]
+    Summarize,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]
 pub struct TaskPayload {
     pub content: String,
@@ -37,6 +51,8 @@ pub struct Model {
     pub id: i64,
     pub collection: String,
     pub payload: TaskPayload,
+    /// Type of task
+    pub task_type: TaskType,
     /// Task status.
     pub status: JobStatus,
     /// If this failed, the reason for the failure
@@ -112,12 +128,18 @@ pub async fn mark_failed(db: &DatabaseConnection, id: i64, retry: bool, error: O
     }
 }
 
-pub async fn enqueue<C>(db: &C, collection: &str, content: &str) -> Result<Model, DbErr>
+pub async fn enqueue<C>(
+    db: &C,
+    collection: &str,
+    content: &str,
+    task_type: TaskType,
+) -> Result<Model, DbErr>
 where
     C: ConnectionTrait,
 {
     let mut new = ActiveModel::new();
     new.collection = Set(collection.to_string());
+    new.task_type = Set(task_type);
     new.payload = Set(TaskPayload {
         content: content.to_string(),
     });
@@ -138,6 +160,7 @@ where
 #[derive(Clone, Debug, FromQueryResult)]
 pub struct Job {
     pub id: i64,
+    pub task_type: TaskType,
 }
 
 pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbErr> {
@@ -156,7 +179,7 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 ORDER BY queue.created_at ASC
                 LIMIT 1
             )
-            RETURNING queue.id"#
+            RETURNING queue.id, queue.task_type"#
             .into(),
         _ => r#"
             UPDATE queue
@@ -172,7 +195,7 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 LIMIT 1
                 FOR UPDATE
             )
-            RETURNING queue.id"#
+            RETURNING queue.id, queue.task_type"#
             .into(),
     };
 
@@ -183,13 +206,12 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
 
 #[cfg(test)]
 mod test {
-    use sea_orm::EntityTrait;
-
     use super::{enqueue, Entity};
     use crate::db::{
         create_connection_by_uri,
         queue::{check_for_jobs, JobStatus},
     };
+    use sea_orm::EntityTrait;
 
     #[tokio::test]
     async fn test_enqueue_and_dequeue() {
@@ -197,7 +219,13 @@ mod test {
             .await
             .expect("Unable to connect");
 
-        let res = enqueue(&db, "job-id", "this is the content").await;
+        let res = enqueue(
+            &db,
+            "job-id",
+            "this is the content",
+            crate::db::queue::TaskType::Ingest,
+        )
+        .await;
         assert!(res.is_ok());
 
         // Dequeue

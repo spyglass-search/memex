@@ -1,0 +1,9 @@
+"{{user_request}}"
+
+The following is the user request on the previously provided text translated into a
+JSON object with 2 spaces of indentation and no properties with the value undefined
+and any unknown values are removed.
+{{#if json_schema}}
+Format the output JSON using the following JSON Schema:
+{{json_schema}}
+{{/if}}
