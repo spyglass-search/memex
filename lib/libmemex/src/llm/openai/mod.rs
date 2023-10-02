@@ -179,7 +179,7 @@ impl OpenAIClient {
 
 #[cfg(test)]
 mod test {
-    use crate::llm::prompter::json_schema_extraction;
+    use crate::llm::prompter::{json_schema_extraction, summarize};
 
     use super::{ChatMessage, OpenAIClient, OpenAIModel};
 
@@ -194,7 +194,7 @@ mod test {
         ];
 
         let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
-        dbg!(&resp);
+        // dbg!(&resp);
         assert!(resp.is_ok());
     }
 
@@ -210,8 +210,30 @@ mod test {
             include_str!("../../../../../fixtures/sample_json_schema.json"),
         );
 
-        let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
+        let resp = client
+            .chat_completion(&OpenAIModel::GPT35, &msgs)
+            .await
+            .unwrap();
         dbg!(&resp);
-        assert!(resp.is_ok());
+        assert!(!resp.is_empty());
+    }
+
+    #[ignore]
+    #[tokio::test]
+    pub async fn test_summarize() {
+        dotenv::dotenv().ok();
+        let client = OpenAIClient::new(&std::env::var("OPENAI_API_KEY").unwrap());
+
+        let msgs = summarize(include_str!(
+            "../../../../../fixtures/sample_yelp_review.txt"
+        ));
+        let resp = client
+            .chat_completion(&OpenAIModel::GPT35, &msgs)
+            .await
+            .unwrap();
+
+        let resp = resp.split('\n').into_iter().collect::<Vec<_>>();
+        assert!(!resp.is_empty());
+        dbg!(&resp);
     }
 }

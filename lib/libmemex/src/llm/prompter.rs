@@ -21,6 +21,14 @@ pub fn quick_question(user_request: &str) -> Vec<ChatMessage> {
     ]
 }
 
+pub fn summarize(input_data: &str) -> Vec<ChatMessage> {
+    vec![
+        ChatMessage::new("system", include_str!("../../prompts/summarize/system.txt")),
+        ChatMessage::new("user", input_data),
+        ChatMessage::new("user", include_str!("../../prompts/summarize/prompt.txt")),
+    ]
+}
+
 pub fn json_schema_extraction(
     input_data: &str,
     user_request: &str,
