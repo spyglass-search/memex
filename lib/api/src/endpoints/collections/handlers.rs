@@ -1,5 +1,5 @@
 use crate::{
-    schema::{self, DocumentSegment},
+    schema::{self, ApiResponse, DocumentSegment},
     ServerError,
 };
 use libmemex::{
@@ -14,6 +14,7 @@ pub async fn handle_add_document(
     req: schema::InsertDocumentRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
+    let time = std::time::Instant::now();
     // Add to job queue
     let task = match queue::enqueue(&db, &collection, &req.content, queue::TaskType::Ingest).await {
         Ok(model) => model,
@@ -21,7 +22,10 @@ pub async fn handle_add_document(
     };
 
     // Create an UUID for this document & add to queue
-    Ok(warp::reply::json(&schema::TaskResult::from(task)))
+    Ok(warp::reply::json(&ApiResponse::success(
+        &time.elapsed(),
+        Some(schema::TaskResult::from(task)),
+    )))
 }
 
 pub async fn handle_delete_collection(
@@ -53,6 +57,7 @@ pub async fn handle_search_docs(
     req: schema::SearchDocsRequest,
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
+    let time = std::time::Instant::now();
     let (_handle, embedder) = SentenceEmbedder::spawn(&ModelConfig::default());
 
     let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
@@ -98,5 +103,8 @@ pub async fn handle_search_docs(
     }
 
     let result = schema::SearchResult { results };
-    Ok(warp::reply::json(&result))
+    Ok(warp::reply::json(&ApiResponse::success(
+        &time.elapsed(),
+        Some(result),
+    )))
 }

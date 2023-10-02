@@ -84,15 +84,17 @@ pub struct ApiResponse<T> {
     pub result: Option<T>,
 }
 
-impl<T> ApiResponse<T> {
-    pub fn error(elapsed: &Duration, error: ErrorMessage) -> ApiResponse<ErrorMessage> {
+impl<ErrorMessage> ApiResponse<ErrorMessage> {
+    pub fn error(error: ErrorMessage) -> ApiResponse<ErrorMessage> {
         ApiResponse {
-            time: elapsed.as_secs_f32(),
+            time: 0.0,
             status: ApiResponseStatus::Error,
             result: Some(error),
         }
     }
+}
 
+impl<T> ApiResponse<T> {
     pub fn success(elapsed: &Duration, result: Option<T>) -> Self {
         Self {
             time: elapsed.as_secs_f32(),

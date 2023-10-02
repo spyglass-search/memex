@@ -8,7 +8,7 @@ use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
 pub mod endpoints;
 pub mod schema;
-use schema::ErrorMessage;
+use schema::{ApiResponse, ErrorMessage};
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -42,10 +42,10 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "UNHANDLED_REJECTION".into();
     }
 
-    let json = warp::reply::json(&ErrorMessage {
+    let json = warp::reply::json(&ApiResponse::error(ErrorMessage {
         code: code.as_u16(),
         message,
-    });
+    }));
 
     Ok(warp::reply::with_status(json, code))
 }
