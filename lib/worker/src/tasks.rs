@@ -1,5 +1,7 @@
 use libmemex::db::{document, embedding, queue};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
+use libmemex::llm::openai::{segment, OpenAIClient};
+use libmemex::llm::prompter;
 use libmemex::storage::{VectorData, VectorStorage};
 use libmemex::NAMESPACE;
 use sea_orm::{prelude::*, Set, TransactionTrait};
@@ -60,12 +62,27 @@ pub async fn process_embeddings(
         log::info!("[job={}] Persisted embeddings", task.id);
     }
     txn.commit().await?;
-    let _ = queue::mark_done(&db, task.id).await;
-    log::info!(
-        "[job={}] job finished in {}ms",
-        task.id,
-        start.elapsed().as_millis()
-    );
-
     Ok(())
+}
+
+pub async fn generate_summary(client: &OpenAIClient, payload: &str) -> anyhow::Result<String> {
+    // Break task content into segments
+    let (splits, model) = segment(payload);
+    let mut buffer = String::new();
+    for (idx, segment) in splits.iter().enumerate() {
+        let time = std::time::Instant::now();
+        let request = prompter::summarize(segment);
+
+        if let Ok(content) = client.chat_completion(&model, &request).await {
+            buffer.push_str(&content);
+        }
+
+        log::info!(
+            "segment {} finished in {}ms",
+            idx + 1,
+            time.elapsed().as_millis()
+        );
+    }
+
+    Ok(buffer)
 }

@@ -11,11 +11,7 @@ impl MigrationTrait for Migration {
                 .alter_table(
                     Table::alter()
                         .table(Queue::Table)
-                        .add_column(
-                            ColumnDef::new(Queue::TaskOutput)
-                                .json()
-                                .null(),
-                        )
+                        .add_column(ColumnDef::new(Queue::TaskOutput).json().null())
                         .to_owned(),
                 )
                 .await?;
@@ -33,5 +29,5 @@ impl MigrationTrait for Migration {
 #[derive(Iden)]
 enum Queue {
     Table,
-    TaskOutput
+    TaskOutput,
 }
