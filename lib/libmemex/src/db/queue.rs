@@ -219,7 +219,13 @@ mod test {
             .await
             .expect("Unable to connect");
 
-        let res = enqueue(&db, "job-id", "this is the content", crate::db::queue::TaskType::Ingest).await;
+        let res = enqueue(
+            &db,
+            "job-id",
+            "this is the content",
+            crate::db::queue::TaskType::Ingest,
+        )
+        .await;
         assert!(res.is_ok());
 
         // Dequeue
