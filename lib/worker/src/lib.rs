@@ -1,5 +1,5 @@
 use libmemex::db::create_connection_by_uri;
-use libmemex::db::queue::{self, check_for_jobs, Job};
+use libmemex::db::queue::{self, check_for_jobs, Job, TaskType};
 use libmemex::db::{document, embedding};
 use libmemex::embedding::{ModelConfig, SentenceEmbedder};
 use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
@@ -20,6 +20,8 @@ pub enum AppShutdown {
 
 pub enum WorkerCommand {
     GenerateEmbedding(Job),
+    LLMExtract(Job),
+    LLMSummarize(Job),
 }
 
 pub struct WorkerInstanceLimits {
@@ -133,7 +135,13 @@ pub async fn run_scheduler(
                             limits.num_active += 1;
                         }
 
-                        if let Err(err) = queue.send(WorkerCommand::GenerateEmbedding(job)).await {
+                        let cmd = match job.task_type {
+                            TaskType::Ingest => WorkerCommand::GenerateEmbedding,
+                            TaskType::Extract => WorkerCommand::LLMExtract,
+                            TaskType::Summarize => WorkerCommand::LLMSummarize,
+                        };
+
+                        if let Err(err) = queue.send(cmd(job)).await {
                             log::error!("Worker channel closed: {err}");
                             return;
                         }
@@ -198,6 +206,9 @@ pub async fn run_workers(
                                 });
                             }
 
+                        }
+                        WorkerCommand::LLMExtract(_) | WorkerCommand::LLMSummarize(_) => {
+                            todo!()
                         }
                     }
                 }

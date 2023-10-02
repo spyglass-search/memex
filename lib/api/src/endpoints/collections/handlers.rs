@@ -15,7 +15,7 @@ pub async fn handle_add_document(
     db: DatabaseConnection,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     // Add to job queue
-    let task = match queue::enqueue(&db, &collection, &req.content).await {
+    let task = match queue::enqueue(&db, &collection, &req.content, queue::TaskType::Ingest).await {
         Ok(model) => model,
         Err(err) => return Err(warp::reject::custom(ServerError::DatabaseError(err))),
     };

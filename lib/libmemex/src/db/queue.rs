@@ -22,8 +22,13 @@ pub enum JobStatus {
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
 #[sea_orm(rs_type = "String", db_type = "String(None)")]
 pub enum TaskType {
-    #[sea_orm(string_value = "Embedding")]
-    Embedding,
+    /// Ingesting a document
+    #[sea_orm(string_value = "Ingest")]
+    Ingest,
+    /// Extracting data from content
+    #[sea_orm(string_value = "Extract")]
+    Extract,
+    /// Summarizing content
     #[sea_orm(string_value = "Summarize")]
     Summarize,
 }
@@ -37,17 +42,6 @@ pub struct TaskPayload {
 pub struct TaskError {
     pub error_type: String,
     pub msg: String,
-}
-
-#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Eq, Display)]
-#[sea_orm(rs_type = "String", db_type = "String(None)")]
-pub enum TaskType {
-    #[sea_orm(string_value = "Ingest")]
-    Ingest,
-    #[sea_orm(string_value = "Extract")]
-    Extract,
-    #[sea_orm(string_value = "Summarize")]
-    Summarize,
 }
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Eq)]
@@ -134,12 +128,18 @@ pub async fn mark_failed(db: &DatabaseConnection, id: i64, retry: bool, error: O
     }
 }
 
-pub async fn enqueue<C>(db: &C, collection: &str, content: &str) -> Result<Model, DbErr>
+pub async fn enqueue<C>(
+    db: &C,
+    collection: &str,
+    content: &str,
+    task_type: TaskType,
+) -> Result<Model, DbErr>
 where
     C: ConnectionTrait,
 {
     let mut new = ActiveModel::new();
     new.collection = Set(collection.to_string());
+    new.task_type = Set(task_type);
     new.payload = Set(TaskPayload {
         content: content.to_string(),
     });
@@ -160,6 +160,7 @@ where
 #[derive(Clone, Debug, FromQueryResult)]
 pub struct Job {
     pub id: i64,
+    pub task_type: TaskType,
 }
 
 pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbErr> {
@@ -172,13 +173,14 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 updated_at = $1
             WHERE queue.id IN (
                 SELECT
-                    id
+                    id,
+                    task_type
                 FROM queue
                 WHERE status = 'Queued'
                 ORDER BY queue.created_at ASC
                 LIMIT 1
             )
-            RETURNING queue.id"#
+            RETURNING (queue.id, queue.task_type)"#
             .into(),
         _ => r#"
             UPDATE queue
@@ -187,14 +189,15 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 updated_at = $1
             WHERE queue.id IN (
                 SELECT
-                    id
+                    id,
+                    task_type
                 FROM queue
                 WHERE status = 'Queued'
                 ORDER BY queue.created_at ASC
                 LIMIT 1
                 FOR UPDATE
             )
-            RETURNING queue.id"#
+            RETURNING (queue.id, queue.task_type)"#
             .into(),
     };
 

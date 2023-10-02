@@ -50,7 +50,7 @@ pub async fn handle_summarize(
 ) -> Result<impl warp::Reply, Rejection> {
     let time = std::time::Instant::now();
     // Add to job queue
-    let task = match queue::enqueue(&db, "tasks", &request.text).await {
+    let task = match queue::enqueue(&db, "tasks", &request.text, queue::TaskType::Summarize).await {
         Ok(model) => model,
         Err(err) => return Err(warp::reject::custom(ServerError::DatabaseError(err))),
     };

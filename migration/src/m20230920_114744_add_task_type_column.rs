@@ -15,7 +15,7 @@ impl MigrationTrait for Migration {
                             ColumnDef::new(Queue::TaskType)
                                 .string()
                                 .not_null()
-                                .default("Embedding"),
+                                .default("Ingest"),
                         )
                         .to_owned(),
                 )
