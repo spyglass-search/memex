@@ -173,14 +173,13 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 updated_at = $1
             WHERE queue.id IN (
                 SELECT
-                    id,
-                    task_type
+                    id
                 FROM queue
                 WHERE status = 'Queued'
                 ORDER BY queue.created_at ASC
                 LIMIT 1
             )
-            RETURNING (queue.id, queue.task_type)"#
+            RETURNING queue.id, queue.task_type"#
             .into(),
         _ => r#"
             UPDATE queue
@@ -189,15 +188,14 @@ pub async fn check_for_jobs(db: &DatabaseConnection) -> Result<Option<Job>, DbEr
                 updated_at = $1
             WHERE queue.id IN (
                 SELECT
-                    id,
-                    task_type
+                    id
                 FROM queue
                 WHERE status = 'Queued'
                 ORDER BY queue.created_at ASC
                 LIMIT 1
                 FOR UPDATE
             )
-            RETURNING (queue.id, queue.task_type)"#
+            RETURNING queue.id, queue.task_type"#
             .into(),
     };
 
