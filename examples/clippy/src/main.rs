@@ -33,13 +33,31 @@ enum Command {
 pub struct Args {
     #[arg(short, long, default_value = "resources/config.vicuna.toml")]
     config: String,
-    #[arg(short, long, default_value = "http://127.0.0.1:8181")]
+    #[arg(short, long, default_value = "http://127.0.0.1:8181/api")]
     memex_uri: String,
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ApiResponseStatus {
+    Ok,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiResponse<T> {
+    /// Execution time in seconds
+    pub time: f32,
+    pub status: ApiResponseStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<T>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskResult {
     task_id: i64,
     collection: String,
@@ -48,6 +66,7 @@ pub struct TaskResult {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResults {
     pub results: Vec<libclippy::Document>,
 }
@@ -136,9 +155,12 @@ async fn main() -> ExitCode {
             };
 
             let resp = result
-                .json::<TaskResult>()
+                .json::<ApiResponse<TaskResult>>()
                 .await
+                .expect("Unable to parse response")
+                .result
                 .expect("Unable to parse response");
+
             println!("✅ added document (task_id: {})", resp.task_id);
         }
         Command::Forget => {
@@ -188,8 +210,10 @@ async fn handle_ask_cmd(
             .send()
             .await
             .expect("Unable to connect to memex")
-            .json::<SearchResults>()
+            .json::<ApiResponse<SearchResults>>()
             .await
+            .expect("Unable to parse response")
+            .result
             .expect("Unable to parse response")
             .results
     } else {

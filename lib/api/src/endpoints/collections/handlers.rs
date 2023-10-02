@@ -59,7 +59,6 @@ pub async fn handle_search_docs(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let time = std::time::Instant::now();
     let (_handle, embedder) = SentenceEmbedder::spawn(&ModelConfig::default());
-
     let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
     let client = match get_vector_storage(&vector_uri, &collection).await {
         Ok(client) => client,
