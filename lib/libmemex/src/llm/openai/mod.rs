@@ -199,6 +199,31 @@ pub fn segment(content: &str) -> (Vec<String>, OpenAIModel) {
     }
 }
 
+/// Truncates a blob of text to the max token size
+pub fn truncate_text(text: &str) -> (String, OpenAIModel) {
+    let cl = cl100k_base().unwrap();
+    let total_tokens: usize = cl.encode_with_special_tokens(text).len();
+
+    if total_tokens <= MAX_TOKENS {
+        (text.to_string(), OpenAIModel::GPT35)
+    } else if total_tokens <= MAX_16K_TOKENS {
+        (text.to_string(), OpenAIModel::GPT35_16K)
+    } else {
+        let mut buffer = String::new();
+        for txt in text.split(' ') {
+            let with_txt = buffer.clone() + txt;
+            let current_size = cl.encode_with_special_tokens(&with_txt).len();
+            if current_size > MAX_16K_TOKENS {
+                break;
+            } else {
+                buffer.push_str(txt);
+            }
+        }
+
+        (buffer, OpenAIModel::GPT35_16K)
+    }
+}
+
 pub fn split_text(text: &str, max_tokens: usize) -> Vec<String> {
     let cl = cl100k_base().unwrap();
 

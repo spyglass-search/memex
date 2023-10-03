@@ -200,8 +200,11 @@ pub async fn run_workers(
                                 }
                             }));
                         }
-                        WorkerCommand::LLMExtract(_) => {
-                            todo!()
+                        WorkerCommand::LLMExtract(job) => {
+                            let _task = match queue::Entity::find_by_id(job.id).one(&db).await {
+                                Ok(Some(model)) => model,
+                                _ => continue
+                            };
                         }
                         WorkerCommand::LLMSummarize(job) => {
                             // Get payload
