@@ -186,10 +186,10 @@ pub fn segment(content: &str) -> (Vec<String>, OpenAIModel) {
     let size = cl.encode_with_special_tokens(content).len();
 
     log::debug!("Context Size {:?}", size);
-    if size < MAX_TOKENS {
+    if size <= MAX_TOKENS {
         log::debug!("Using standard model");
         (vec![content.to_string()], OpenAIModel::GPT35)
-    } else if size > MAX_TOKENS && size < MAX_16K_TOKENS {
+    } else if size <= MAX_16K_TOKENS {
         log::debug!("Using 16k model");
         (vec![content.to_string()], OpenAIModel::GPT35_16K)
     } else {
