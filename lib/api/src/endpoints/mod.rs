@@ -5,6 +5,7 @@ use warp::Filter;
 
 mod actions;
 mod collections;
+mod fetch;
 mod tasks;
 
 const LIMIT_1_MB: u64 = 1000 * 1024;
@@ -22,5 +23,6 @@ pub fn build(
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     actions::filters::build(llm, db)
         .or(collections::filters::build(db))
+        .or(fetch::filters::build())
         .or(tasks::filters::build(db))
 }
