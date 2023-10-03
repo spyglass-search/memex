@@ -29,7 +29,7 @@ fn extract(
     warp::path!("action" / "ask")
         .and(warp::post())
         .and(with_llm(llm.clone()))
-        .and(json_body::<AskRequest>(1024 * 16))
+        .and(json_body::<AskRequest>(1024 * 1024 * 10))
         .and_then(super::handlers::handle_extract)
 }
 

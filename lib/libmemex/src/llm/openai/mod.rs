@@ -186,16 +186,41 @@ pub fn segment(content: &str) -> (Vec<String>, OpenAIModel) {
     let size = cl.encode_with_special_tokens(content).len();
 
     log::debug!("Context Size {:?}", size);
-    if size < MAX_TOKENS {
+    if size <= MAX_TOKENS {
         log::debug!("Using standard model");
         (vec![content.to_string()], OpenAIModel::GPT35)
-    } else if size > MAX_TOKENS && size < MAX_16K_TOKENS {
+    } else if size <= MAX_16K_TOKENS {
         log::debug!("Using 16k model");
         (vec![content.to_string()], OpenAIModel::GPT35_16K)
     } else {
         let splits = split_text(content, MAX_16K_TOKENS);
         log::debug!("Spliting with 16K model splits {:?}", splits.len());
         (splits, OpenAIModel::GPT35_16K)
+    }
+}
+
+/// Truncates a blob of text to the max token size
+pub fn truncate_text(text: &str) -> (String, OpenAIModel) {
+    let cl = cl100k_base().unwrap();
+    let total_tokens: usize = cl.encode_with_special_tokens(text).len();
+
+    if total_tokens <= MAX_TOKENS {
+        (text.to_string(), OpenAIModel::GPT35)
+    } else if total_tokens <= MAX_16K_TOKENS {
+        (text.to_string(), OpenAIModel::GPT35_16K)
+    } else {
+        let mut buffer = String::new();
+        for txt in text.split(' ') {
+            let with_txt = buffer.clone() + txt;
+            let current_size = cl.encode_with_special_tokens(&with_txt).len();
+            if current_size > MAX_16K_TOKENS {
+                break;
+            } else {
+                buffer.push_str(txt);
+            }
+        }
+
+        (buffer, OpenAIModel::GPT35_16K)
     }
 }
 
