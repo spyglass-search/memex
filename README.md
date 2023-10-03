@@ -28,14 +28,18 @@ since Linux ARM builds are very finicky.
 NOTE: If the `test` collection does not initially exist, it'll be created.
 
 ``` bash
-> curl http://localhost:8181/collections/test \
+> curl http://localhost:8181/api/collections/test \
     -H "Content-Type: application/json" \
     --data @example_docs/state_of_the_union_2023.json
 {
-    "task_id": 1,
-    "collection": "test",
-    "status": "Queued",
-    ...
+    "time": 0.123,
+    "status": "ok",
+    "result": {
+        "taskId": 1,
+        "collection": "test",
+        "status": "Queued",
+        ...
+    }
 }
 ```
 
@@ -48,20 +52,28 @@ using the `task_id` above like so:
 ## Check task status
 
 ``` bash
-> curl http://localhost:8181/tasks/1
+> curl http://localhost:8181/api/tasks/1
 {
-    "task_id": 1,
-    "status": "Processing"
+    "time": 0.123,
+    "status": "ok",
+    "result": {
+        "taskId": 1,
+        "status": "Processing"
+    }
 }
 ```
 
 Or if it's finished, something like so:
 ```bash
 {
-    "task_id": 1,
-    "collection": "test"
-    "status": "Completed",
-    "created_at": "2023-09-19T00:00:00Z"
+    "time": 0.123,
+    "status": "ok",
+    "result": {
+        "taskId": 1,
+        "collection": "test"
+        "status": "Completed",
+        "createdAt": "2023-09-19T00:00:00Z"
+    }
 }
 ```
 
@@ -71,17 +83,21 @@ you've just added.
 ## Run a query
 
 ``` bash
-> curl http://localhost:8181/collections/test/search \
+> curl http://localhost:8181/api/collections/test/search \
     -H "Content-Type: application/json" \
     -X GET \
     -d "{\"query\": \"what does Biden say about taxes?\", \"limit\": 3}"
-[{
-    "_id": <internal_id>, // reference to this particular segment text.
-    "document_id": <document UUID>, // The original document that this came from.
-    "segment": <document section>,
-    "content": <content block>,
-    "score": <relevancy score>
-}, ...]
+{
+    "time": 1.234,
+    "status": "ok",
+    "result": [{
+        "_id": <internal_id>, // reference to this particular segment text.
+        "document_id": <document UUID>, // The original document that this came from.
+        "segment": <document section>,
+        "content": <content block>,
+        "score": <relevancy score>
+    }, ...]
+}
 ```
 
 ## Env variables
