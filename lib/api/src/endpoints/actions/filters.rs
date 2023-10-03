@@ -36,10 +36,10 @@ fn extract(
 fn summarize(
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    warp::path!("action" / "summarize")
+    warp::path!("action" / "summarize" / "task")
         .and(warp::post())
         .and(with_db(db.clone()))
-        .and(json_body::<SummarizeRequest>(1024 * 1024))
+        .and(json_body::<SummarizeRequest>(1024 * 1024 * 10))
         .and_then(super::handlers::handle_summarize)
 }
 

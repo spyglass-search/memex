@@ -8,7 +8,7 @@ use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
 pub mod endpoints;
 pub mod schema;
-use schema::ErrorMessage;
+use schema::{ApiResponse, ErrorMessage};
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -42,10 +42,10 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "UNHANDLED_REJECTION".into();
     }
 
-    let json = warp::reply::json(&ErrorMessage {
+    let json = warp::reply::json(&ApiResponse::error(ErrorMessage {
         code: code.as_u16(),
         message,
-    });
+    }));
 
     Ok(warp::reply::with_status(json, code))
 }
@@ -54,12 +54,14 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
 pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone
 {
     let version = dotenv!("GIT_HASH");
-    warp::path("health")
+    warp::path!("api" / "health")
         .and(warp::get())
         .map(move || warp::reply::json(&json!({ "version": version })))
 }
 
 pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
+    log::info!("starting api server @ {}:{}", host, port);
+
     // Attempt to connect to db
     let db_connection = create_connection_by_uri(&db_uri, true)
         .await
@@ -72,10 +74,11 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
-    let filters = health_check()
-        .or(endpoints::build(&db_connection, &llm_client).with(warp::trace::request()))
-        .with(cors)
-        .recover(handle_rejection);
+    let api = warp::path("api")
+        .and(endpoints::build(&db_connection, &llm_client))
+        .with(warp::trace::request());
+
+    let filters = health_check().or(api).with(cors).recover(handle_rejection);
 
     let (_addr, handle) =
         warp::serve(filters).bind_with_graceful_shutdown((host, port), async move {
