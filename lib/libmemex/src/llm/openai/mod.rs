@@ -2,12 +2,16 @@ use reqwest::{header, Response, StatusCode};
 use serde::Serialize;
 use strum_macros::{AsRefStr, Display};
 use thiserror::Error;
+use tiktoken_rs::cl100k_base;
 
 use self::schema::ErrorResponse;
 
 mod schema;
 
 const CONTEXT_LENGTH_ERROR: &str = "context_length_exceeded";
+// Max context - response length - prompt length
+pub const MAX_TOKENS: usize = 4_097 - 1_024 - 100;
+pub const MAX_16K_TOKENS: usize = 16_384 - 2_048 - 100;
 
 #[derive(AsRefStr, Display, Clone)]
 pub enum OpenAIModel {
@@ -175,6 +179,67 @@ impl OpenAIClient {
             Err(OpenAIError::Other(warning))
         }
     }
+}
+
+pub fn segment(content: &str) -> (Vec<String>, OpenAIModel) {
+    let cl = cl100k_base().unwrap();
+    let size = cl.encode_with_special_tokens(content).len();
+
+    log::debug!("Context Size {:?}", size);
+    if size < MAX_TOKENS {
+        log::debug!("Using standard model");
+        (vec![content.to_string()], OpenAIModel::GPT35)
+    } else if size > MAX_TOKENS && size < MAX_16K_TOKENS {
+        log::debug!("Using 16k model");
+        (vec![content.to_string()], OpenAIModel::GPT35_16K)
+    } else {
+        let splits = split_text(content, MAX_16K_TOKENS);
+        log::debug!("Spliting with 16K model splits {:?}", splits.len());
+        (splits, OpenAIModel::GPT35_16K)
+    }
+}
+
+pub fn split_text(text: &str, max_tokens: usize) -> Vec<String> {
+    let cl = cl100k_base().unwrap();
+
+    let total_tokens: usize = cl.encode_with_special_tokens(text).len();
+    let mut doc_parts = Vec::new();
+    if total_tokens <= max_tokens {
+        doc_parts.push(text.into());
+    } else {
+        let split_count = total_tokens
+            .checked_div(max_tokens)
+            .map(|val| val + 2)
+            .unwrap_or(1);
+        let split_size = text.len().checked_div(split_count).unwrap_or(text.len());
+        if split_size == text.len() {
+            doc_parts.push(text.into());
+        } else {
+            let mut part = Vec::new();
+            let mut size = 0;
+            for txt in text.split(' ') {
+                if (size + txt.len()) > split_size {
+                    doc_parts.push(part.join(" "));
+                    let mut end = part.len();
+                    if part.len() > 10 {
+                        end = part.len() - 10;
+                    }
+                    part.drain(0..end);
+                    size = part.join(" ").len();
+                }
+                size += txt.len() + 1;
+                part.push(txt);
+            }
+            if !part.is_empty() {
+                doc_parts.push(part.join(" "));
+            }
+        }
+    }
+
+    doc_parts
+        .iter()
+        .map(|pt| pt.to_string())
+        .collect::<Vec<String>>()
 }
 
 #[cfg(test)]

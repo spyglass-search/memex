@@ -1,17 +1,17 @@
 use libmemex::db::create_connection_by_uri;
 use libmemex::db::queue::{self, check_for_jobs, Job, TaskType};
-use libmemex::db::{document, embedding};
-use libmemex::embedding::{ModelConfig, SentenceEmbedder};
-use libmemex::storage::{get_vector_storage, VectorData, VectorStorage};
-use libmemex::NAMESPACE;
-use sea_orm::prelude::*;
-use sea_orm::Set;
-use sea_orm::TransactionTrait;
+use libmemex::llm::openai::OpenAIClient;
+use libmemex::storage::get_vector_storage;
+use sea_orm::{prelude::*, Set};
+use std::future::Future;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use tokio::{
     sync::{broadcast, mpsc},
     time::Duration,
 };
+
+mod tasks;
 
 #[derive(Debug, Clone)]
 pub enum AppShutdown {
@@ -135,6 +135,7 @@ pub async fn run_scheduler(
                             limits.num_active += 1;
                         }
 
+                        // Map task type to the relevant WorkerCommand
                         let cmd = match job.task_type {
                             TaskType::Ingest => WorkerCommand::GenerateEmbedding,
                             TaskType::Extract => WorkerCommand::LLMExtract,
@@ -182,33 +183,54 @@ pub async fn run_workers(
                                 _ => continue
                             };
 
-                            {
-                                let limits = limits.clone();
-                                let db = db.clone();
-                                log::info!("[job={}] spawning task", task.id);
-                                tokio::spawn(async move {
-                                    let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
-                                    let client = match get_vector_storage(&vector_uri, &task.collection).await {
-                                        Ok(client) => client,
-                                        Err(err) => {
-                                            log::error!("Unable to connect to vector db: {err}");
-                                            return;
-                                        }
-                                    };
+                            let db = db.clone();
 
-                                    if let Err(err) = _process_embeddings(db, client, &task).await {
-                                        log::error!("[job={}] Unable to process embeddings: {err}", task.id);
+                            tokio::spawn(run_task(task.id, db.clone(), limits.clone(), async move {
+                                let vector_uri = std::env::var("VECTOR_CONNECTION").expect("VECTOR_CONNECTION env var not set");
+                                let client = match get_vector_storage(&vector_uri, &task.collection).await {
+                                    Ok(client) => client,
+                                    Err(err) => {
+                                        log::error!("Unable to connect to vector db: {err}");
+                                        return;
                                     }
+                                };
 
-                                    if let Ok(mut limits) = limits.lock() {
-                                        limits.num_active -= 1;
-                                    }
-                                });
-                            }
-
+                                if let Err(err) = tasks::process_embeddings(db, client, &task).await {
+                                    log::error!("[job={}] Unable to process embeddings: {err}", task.id);
+                                }
+                            }));
                         }
-                        WorkerCommand::LLMExtract(_) | WorkerCommand::LLMSummarize(_) => {
+                        WorkerCommand::LLMExtract(_) => {
                             todo!()
+                        }
+                        WorkerCommand::LLMSummarize(job) => {
+                            // Get payload
+                            let task = match queue::Entity::find_by_id(job.id).one(&db).await {
+                                Ok(Some(model)) => model,
+                                _ => continue
+                            };
+
+                            {
+                                let db = db.clone();
+                                let content = task.payload.content.clone();
+                                tokio::spawn(run_task(task.id, db.clone(), limits.clone(), async move {
+                                    let client = OpenAIClient::new(
+                                        &std::env::var("OPENAI_API_KEY").expect("OpenAI API key not set")
+                                    );
+
+                                    match tasks::generate_summary(&client, &content).await {
+                                        Ok(summary) => {
+                                            let value = serde_json::json!({ "bullets": summary });
+                                            let mut update: queue::ActiveModel = task.into();
+                                            update.task_output = Set(Some(value));
+                                            let _ = update.save(&db).await;
+                                        },
+                                        Err(err) => {
+                                            log::error!("[job={}] Unable to generate summary: {err}", task.id);
+                                        }
+                                    }
+                                }));
+                            }
                         }
                     }
                 }
@@ -221,68 +243,28 @@ pub async fn run_workers(
     }
 }
 
-async fn _process_embeddings(
+pub async fn run_task<T>(
+    task_id: i64,
     db: DatabaseConnection,
-    client: VectorStorage,
-    task: &queue::Model,
-) -> anyhow::Result<()> {
-    let start = std::time::Instant::now();
-    let model_config = ModelConfig::default();
-
-    let (_handle, embedder) = SentenceEmbedder::spawn(&model_config);
-    log::info!("[job={}] generating embeddings", task.id);
-    let embeddings = embedder.encode(task.payload.content.clone()).await?;
-    log::info!(
-        "[job={}] created {} embeddings in {}ms",
-        task.id,
-        embeddings.len(),
-        start.elapsed().as_millis()
-    );
-
-    // Create a wrapper document w/ all the data from the task
-    let document = document::ActiveModel::from_task(task);
-    let document = document.insert(&db).await?;
-
-    let txn = db.begin().await?;
-    // Persist vectors to db & vector store
-    let mut vectors = Vec::new();
-    for (idx, embedding) in embeddings.iter().enumerate() {
-        // Create a unique identifier for this segment w/ the task_id & segment
-        let uuid = uuid::Uuid::new_v5(
-            &NAMESPACE,
-            format!("{}-{idx}", document.uuid.clone()).as_bytes(),
-        )
-        .to_string();
-
-        let mut new_seg = embedding::ActiveModel::new();
-        new_seg.uuid = Set(uuid.clone());
-        new_seg.document_id = Set(document.uuid.clone());
-        new_seg.segment = Set(idx as i64);
-        new_seg.content = Set(embedding.content.clone());
-        new_seg.vector = Set(embedding.vector.clone().into());
-        new_seg.insert(&txn).await?;
-
-        vectors.push(VectorData {
-            _id: uuid.clone(),
-            document_id: document.uuid.clone(),
-            text: embedding.content.clone(),
-            segment_id: idx,
-            vector: embedding.vector.clone(),
-        });
-    }
-
-    if let Err(err) = client.add_vectors(vectors).await {
-        log::error!("[job={}] Unable to upsert points: {err}", task.id);
-    } else {
-        log::info!("[job={}] Persisted embeddings", task.id);
-    }
-    txn.commit().await?;
-    let _ = queue::mark_done(&db, task.id).await;
+    limits: WorkerLimitMutex,
+    future: T,
+) -> <T as Future>::Output
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
+    let start = Instant::now();
+    log::info!("[job={}] spawning task", task_id);
+    let res = future.await;
     log::info!(
         "[job={}] job finished in {}ms",
-        task.id,
+        task_id,
         start.elapsed().as_millis()
     );
+    let _ = queue::mark_done(&db, task_id).await;
+    if let Ok(mut limits) = limits.lock() {
+        limits.num_active -= 1;
+    }
 
-    Ok(())
+    res
 }

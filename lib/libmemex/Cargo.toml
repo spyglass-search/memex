@@ -24,6 +24,7 @@ serde_json = { workspace = true }
 strum = "0.25"
 strum_macros = "0.25"
 thiserror = "1.0"
+tiktoken-rs = "0.5.4"
 tokenizers = { version = "0.14", features = ["http"] }
 tokio = { workspace = true }
 url = "2.4.0"

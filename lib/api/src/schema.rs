@@ -3,6 +3,7 @@ use std::time::Duration;
 use chrono::Utc;
 use libmemex::db;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// An API error serializable to JSON.
 #[derive(Serialize)]
@@ -44,11 +45,14 @@ pub struct SearchResult {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskResult {
     task_id: i64,
     collection: String,
     status: String,
     created_at: chrono::DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<Value>,
 }
 
 impl From<db::queue::Model> for TaskResult {
@@ -58,6 +62,7 @@ impl From<db::queue::Model> for TaskResult {
             collection: value.collection,
             status: value.status.to_string(),
             created_at: value.created_at,
+            result: value.task_output,
         }
     }
 }
@@ -70,6 +75,7 @@ pub enum ApiResponseStatus {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApiResponse<T> {
     /// Execution time in seconds
     pub time: f32,
@@ -78,15 +84,17 @@ pub struct ApiResponse<T> {
     pub result: Option<T>,
 }
 
-impl<T> ApiResponse<T> {
-    pub fn error(elapsed: &Duration, error: ErrorMessage) -> ApiResponse<ErrorMessage> {
+impl<ErrorMessage> ApiResponse<ErrorMessage> {
+    pub fn error(error: ErrorMessage) -> ApiResponse<ErrorMessage> {
         ApiResponse {
-            time: elapsed.as_secs_f32(),
+            time: 0.0,
             status: ApiResponseStatus::Error,
             result: Some(error),
         }
     }
+}
 
+impl<T> ApiResponse<T> {
     pub fn success(elapsed: &Duration, result: Option<T>) -> Self {
         Self {
             time: elapsed.as_secs_f32(),

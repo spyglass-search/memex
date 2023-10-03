@@ -51,6 +51,7 @@ pub struct Model {
     pub id: i64,
     pub collection: String,
     pub payload: TaskPayload,
+    pub task_output: Option<Json>,
     /// Type of task
     pub task_type: TaskType,
     /// Task status.
