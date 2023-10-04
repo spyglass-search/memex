@@ -24,4 +24,10 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --from=builder /usr/src/target/release/memex ./
+
+# Copy pdftotext binary
+RUN mkdir -p /usr/local/bin/pdftotext
+COPY resources/utils/linux/pdftotext /usr/local/bin/pdftotext
+RUN chmod +x /usr/local/bin/pdftotext
+
 ENTRYPOINT [ "./memex" ]

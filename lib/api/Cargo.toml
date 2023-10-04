@@ -9,6 +9,7 @@ edition = "2021"
 chrono = { workspace = true }
 dotenv = { workspace = true }
 dotenv_codegen = { workspace = true }
+futures-util = "0.3.28"
 jsonschema = "0.17.1"
 log = { workspace = true }
 qdrant-client = "1.2.0"
