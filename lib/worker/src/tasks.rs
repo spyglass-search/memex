@@ -78,8 +78,9 @@ pub async fn generate_summary(client: &OpenAIClient, payload: &str) -> anyhow::R
         }
 
         log::info!(
-            "segment {} finished in {}ms",
+            "segment {} of {} finished in {}ms",
             idx + 1,
+            splits.len(),
             time.elapsed().as_millis()
         );
     }

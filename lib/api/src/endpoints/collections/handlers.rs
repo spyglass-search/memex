@@ -23,7 +23,7 @@ pub async fn handle_add_document(
 
     // Create an UUID for this document & add to queue
     Ok(warp::reply::json(&ApiResponse::success(
-        &time.elapsed(),
+        time.elapsed(),
         Some(schema::TaskResult::from(task)),
     )))
 }
@@ -103,7 +103,7 @@ pub async fn handle_search_docs(
 
     let result = schema::SearchResult { results };
     Ok(warp::reply::json(&ApiResponse::success(
-        &time.elapsed(),
+        time.elapsed(),
         Some(result),
     )))
 }

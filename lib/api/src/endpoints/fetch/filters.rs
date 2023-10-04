@@ -15,6 +15,13 @@ fn fetch_url() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejec
         .and_then(super::handlers::handle_fetch)
 }
 
+pub fn parse_file() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    warp::path!("fetch" / "parse")
+        .and(warp::post())
+        .and(warp::multipart::form().max_length(50_000_000))
+        .and_then(super::handlers::handle_parse)
+}
+
 pub fn build() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
-    fetch_url()
+    fetch_url().or(parse_file()).boxed()
 }

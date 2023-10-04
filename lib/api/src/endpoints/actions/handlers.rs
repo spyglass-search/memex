@@ -42,7 +42,7 @@ pub async fn handle_extract(
         .map_err(|err| ServerError::Other(err.to_string()))?;
 
     Ok(warp::reply::json(&ApiResponse::success(
-        &time.elapsed(),
+        time.elapsed(),
         Some(serde_json::json!({ "jsonResponse": val })),
     )))
 }
@@ -60,7 +60,7 @@ pub async fn handle_summarize(
 
     let result = TaskResult::from(task);
     Ok(warp::reply::json(&ApiResponse::success(
-        &time.elapsed(),
+        time.elapsed(),
         Some(result),
     )))
 }

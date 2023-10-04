@@ -154,6 +154,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "dotenv_codegen",
+ "futures-util",
  "jsonschema",
  "libmemex",
  "log",
