@@ -19,7 +19,7 @@ pub async fn handle_check_task(
         Some(result) => {
             let result = TaskResult::from(result);
             Ok(warp::reply::json(&ApiResponse::success(
-                &time.elapsed(),
+                time.elapsed(),
                 Some(result),
             )))
         }

@@ -95,7 +95,7 @@ impl<ErrorMessage> ApiResponse<ErrorMessage> {
 }
 
 impl<T> ApiResponse<T> {
-    pub fn success(elapsed: &Duration, result: Option<T>) -> Self {
+    pub fn success(elapsed: Duration, result: Option<T>) -> Self {
         Self {
             time: elapsed.as_secs_f32(),
             status: ApiResponseStatus::Ok,
