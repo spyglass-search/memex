@@ -4,12 +4,11 @@ use warp::filters::multipart::FormData;
 use warp::Buf;
 
 use super::filters;
+use crate::endpoints::UPLOAD_DATA_DIR;
 
 // When memex is running inside the docker image.
 #[cfg(not(debug_assertions))]
 const EXE_NAME: &str = "/usr/local/bin/pdftotext";
-#[cfg(not(debug_assertions))]
-const DATA_DIR: &str = "/tmp";
 
 // In debug mode or running locally
 #[cfg(all(target_os = "windows", debug_assertions))]
@@ -18,8 +17,6 @@ const EXE_NAME: &str = "./resources/utils/win/pdftotext.exe";
 const EXE_NAME: &str = "./resources/utils/mac/pdftotext";
 #[cfg(all(target_os = "linux", debug_assertions))]
 const EXE_NAME: &str = "./resources/utils/linux/pdftotext";
-#[cfg(debug_assertions)]
-const DATA_DIR: &str = "./uploads";
 
 pub async fn handle_fetch(
     query: filters::FetchRequest,
@@ -90,8 +87,8 @@ pub async fn handle_parse(form: FormData) -> Result<impl warp::Reply, warp::Reje
     };
 
     let file_id = uuid::Uuid::new_v4();
-    let filename = format!("{DATA_DIR}/{}.{}", file_id, file_ending);
-    let parsed_output = format!("{DATA_DIR}/{}.txt", file_id);
+    let filename = format!("{UPLOAD_DATA_DIR}/{}.{}", file_id, file_ending);
+    let parsed_output = format!("{UPLOAD_DATA_DIR}/{}.txt", file_id);
 
     log::debug!("saving file to {filename}");
     tokio::fs::write(&filename, data)

@@ -2,7 +2,7 @@ use dotenv_codegen::dotenv;
 use libmemex::{db::create_connection_by_uri, llm::openai::OpenAIClient};
 use sea_orm::DatabaseConnection;
 use serde_json::json;
-use std::{convert::Infallible, net::Ipv4Addr};
+use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf};
 use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
@@ -61,6 +61,13 @@ pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
 
 pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
     log::info!("starting api server @ {}:{}", host, port);
+
+    log::info!("checking for upload directory...");
+    let data_dir_path: PathBuf = endpoints::UPLOAD_DATA_DIR.into();
+    if !data_dir_path.exists() {
+        log::info!("creating upload directory @ {data_dir_path:?}");
+        let _ = std::fs::create_dir_all(data_dir_path);
+    }
 
     // Attempt to connect to db
     let db_connection = create_connection_by_uri(&db_uri, true)
