@@ -1,10 +1,10 @@
 use reqwest::{header, Response, StatusCode};
 use serde::Serialize;
 use strum_macros::{AsRefStr, Display};
-use thiserror::Error;
 use tiktoken_rs::cl100k_base;
 
 use self::schema::ErrorResponse;
+use super::{ChatMessage, LLMError, LLM};
 
 mod schema;
 
@@ -32,41 +32,12 @@ pub enum OpenAIModel {
     GPT4_8K,
 }
 
-#[derive(Debug, Error)]
-pub enum OpenAIError {
-    #[error("Context length exceeded: {0}")]
-    ContextLengthExceeded(String),
-    #[error("No response received")]
-    NoResponse,
-    #[error("Request Error: {0}")]
-    RequestError(#[from] reqwest::Error),
-    #[error("Unable to deserialize: {0}")]
-    SerdeError(#[from] serde_json::Error),
-    #[error("Invalid Request: {0}")]
-    Other(String),
-}
-
-impl From<ErrorResponse> for OpenAIError {
+impl From<ErrorResponse> for LLMError {
     fn from(value: ErrorResponse) -> Self {
         if value.error.code == CONTEXT_LENGTH_ERROR {
-            OpenAIError::ContextLengthExceeded(value.error.message)
+            LLMError::ContextLengthExceeded(value.error.message)
         } else {
-            OpenAIError::Other(value.error.message)
-        }
-    }
-}
-
-#[derive(Serialize, Debug, Clone)]
-pub struct ChatMessage {
-    role: String,
-    content: String,
-}
-
-impl ChatMessage {
-    pub fn new(role: &str, content: &str) -> Self {
-        Self {
-            role: role.to_string(),
-            content: content.to_string(),
+            LLMError::Other(value.error.message)
         }
     }
 }
@@ -103,22 +74,64 @@ impl CompletionRequest {
 }
 
 /// Helper function to parse error messages from the OpenAI API response.
-async fn check_api_error(response: Response) -> OpenAIError {
+async fn check_api_error(response: Response) -> LLMError {
     // Grab the raw response body
     let raw_body = match response.text().await {
         Ok(raw) => raw,
-        Err(err) => return OpenAIError::Other(format!("Invalid response: {err}")),
+        Err(err) => return LLMError::Other(format!("Invalid response: {err}")),
     };
     // Attempt to parse into an error object, otherwise return the raw message.
     match serde_json::from_str::<schema::ErrorResponse>(&raw_body) {
         Ok(error) => error.into(),
-        Err(err) => OpenAIError::Other(format!("Error: {err}, raw response: {raw_body}")),
+        Err(err) => LLMError::Other(format!("Error: {err}, raw response: {raw_body}")),
     }
 }
 
 #[derive(Clone)]
 pub struct OpenAIClient {
     client: reqwest::Client,
+}
+
+#[async_trait::async_trait]
+impl LLM<OpenAIModel> for OpenAIClient {
+    async fn chat_completion(
+        &self,
+        model: OpenAIModel,
+        msgs: &[ChatMessage],
+    ) -> anyhow::Result<String, LLMError> {
+        log::debug!(
+            "[OpenAI] chat completion w/ {} | {} messages",
+            model,
+            msgs.len()
+        );
+
+        let request_body = CompletionRequest::new(&model, msgs);
+        let response = self
+            .client
+            .post(&"https://api.openai.com/v1/chat/completions".to_string())
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = &response.status();
+        if StatusCode::is_success(status) {
+            let completion = response
+                .json::<schema::ChatCompletionResponse>()
+                .await
+                .map_err(LLMError::RequestError)?;
+
+            match completion.response() {
+                Some(msg) => Ok(msg),
+                None => Err(LLMError::NoResponse),
+            }
+        } else if StatusCode::is_client_error(status) || StatusCode::is_server_error(status) {
+            Err(check_api_error(response).await)
+        } else {
+            let warning = format!("OpenAI response not currently supported {:?}", response);
+            log::warn!("{}", &warning);
+            Err(LLMError::Other(warning))
+        }
+    }
 }
 
 impl OpenAIClient {
@@ -139,45 +152,6 @@ impl OpenAIClient {
             .expect("Unable to build HTTP client");
 
         Self { client }
-    }
-
-    pub async fn chat_completion(
-        &self,
-        model: &OpenAIModel,
-        msgs: &[ChatMessage],
-    ) -> anyhow::Result<String, OpenAIError> {
-        log::debug!(
-            "[OpenAI] chat completion w/ {} | {} messages",
-            model,
-            msgs.len()
-        );
-
-        let request_body = CompletionRequest::new(model, msgs);
-        let response = self
-            .client
-            .post(&"https://api.openai.com/v1/chat/completions".to_string())
-            .json(&request_body)
-            .send()
-            .await?;
-
-        let status = &response.status();
-        if StatusCode::is_success(status) {
-            let completion = response
-                .json::<schema::ChatCompletionResponse>()
-                .await
-                .map_err(OpenAIError::RequestError)?;
-
-            match completion.response() {
-                Some(msg) => Ok(msg),
-                None => Err(OpenAIError::NoResponse),
-            }
-        } else if StatusCode::is_client_error(status) || StatusCode::is_server_error(status) {
-            Err(check_api_error(response).await)
-        } else {
-            let warning = format!("OpenAI response not currently supported {:?}", response);
-            log::warn!("{}", &warning);
-            Err(OpenAIError::Other(warning))
-        }
     }
 }
 
@@ -269,9 +243,8 @@ pub fn split_text(text: &str, max_tokens: usize) -> Vec<String> {
 
 #[cfg(test)]
 mod test {
+    use super::{ChatMessage, OpenAIClient, OpenAIModel, LLM};
     use crate::llm::prompter::{json_schema_extraction, summarize};
-
-    use super::{ChatMessage, OpenAIClient, OpenAIModel};
 
     #[ignore]
     #[tokio::test]
@@ -279,11 +252,11 @@ mod test {
         dotenv::dotenv().ok();
         let client = OpenAIClient::new(&std::env::var("OPENAI_API_KEY").unwrap());
         let msgs = vec![
-            ChatMessage::new("system", "You are a helpful assistant"),
-            ChatMessage::new("user", "Who won the world series in 2020?"),
+            ChatMessage::system("You are a helpful assistant"),
+            ChatMessage::user("Who won the world series in 2020?"),
         ];
 
-        let resp = client.chat_completion(&OpenAIModel::GPT35, &msgs).await;
+        let resp = client.chat_completion(OpenAIModel::GPT35, &msgs).await;
         // dbg!(&resp);
         assert!(resp.is_ok());
     }
@@ -301,7 +274,7 @@ mod test {
         );
 
         let resp = client
-            .chat_completion(&OpenAIModel::GPT35, &msgs)
+            .chat_completion(OpenAIModel::GPT35, &msgs)
             .await
             .unwrap();
         dbg!(&resp);
@@ -318,7 +291,7 @@ mod test {
             "../../../../../fixtures/sample_yelp_review.txt"
         ));
         let resp = client
-            .chat_completion(&OpenAIModel::GPT35, &msgs)
+            .chat_completion(OpenAIModel::GPT35, &msgs)
             .await
             .unwrap();
 

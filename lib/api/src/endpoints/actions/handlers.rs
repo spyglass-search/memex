@@ -11,7 +11,7 @@ use libmemex::{
     db::queue,
     llm::{
         openai::{truncate_text, OpenAIClient},
-        prompter,
+        prompter, LLM,
     },
 };
 
@@ -34,7 +34,7 @@ pub async fn handle_extract(
     };
 
     let response = llm
-        .chat_completion(&model, &prompt)
+        .chat_completion(model, &prompt)
         .await
         .map_err(|err| ServerError::Other(err.to_string()))?;
 
