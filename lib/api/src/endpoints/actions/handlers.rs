@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     schema::{ApiResponse, TaskResult},
     ServerError,
@@ -9,19 +11,16 @@ use warp::reject::Rejection;
 use super::filters;
 use libmemex::{
     db::queue,
-    llm::{
-        openai::{truncate_text, OpenAIClient},
-        prompter, LLM,
-    },
+    llm::{prompter, LLM},
 };
 
 pub async fn handle_extract(
-    llm: OpenAIClient,
+    llm: Arc<Box<dyn LLM>>,
     request: filters::AskRequest,
 ) -> Result<impl warp::Reply, Rejection> {
     let time = std::time::Instant::now();
 
-    let (content, model) = truncate_text(&request.text);
+    let (content, model) = llm.truncate_text(&request.text);
 
     // Build prompt
     let prompt = if let Some(schema) = &request.json_schema {
@@ -34,7 +33,7 @@ pub async fn handle_extract(
     };
 
     let response = llm
-        .chat_completion(model, &prompt)
+        .chat_completion(model.as_ref(), &prompt)
         .await
         .map_err(|err| ServerError::Other(err.to_string()))?;
 

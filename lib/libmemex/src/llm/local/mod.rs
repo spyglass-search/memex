@@ -4,14 +4,18 @@ use llm::InferenceParameters;
 use llm::{self, samplers::ConfiguredSamplers, InferenceSessionConfig};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+use tiktoken_rs::cl100k_base;
 use tokio::sync::mpsc;
 
-use crate::llm::ChatRole;
+use crate::llm::{split_text, ChatRole};
 
 use super::{ChatMessage, LLMError, LLM};
 mod schema;
 use schema::LlmEvent;
 
+pub const MAX_TOKENS: usize = 2_048 - 512 - 100;
+
+#[derive(Clone)]
 pub struct LocalLLM<T>
 where
     T: llm::KnownModel,
@@ -20,7 +24,7 @@ where
     infer_params: InferenceParameters,
     /// At the moment does nothing but will eventually be used by our internal
     /// sampler to only output JSON/etc.
-    bias_sampler: Arc<Mutex<SampleFlatBias>>,
+    _bias_sampler: Arc<Mutex<SampleFlatBias>>,
 }
 
 impl<T> LocalLLM<T>
@@ -44,7 +48,7 @@ where
         Self {
             model,
             infer_params,
-            bias_sampler: Arc::new(Mutex::new(bias_sampler)),
+            _bias_sampler: Arc::new(Mutex::new(bias_sampler)),
         }
     }
 
@@ -135,13 +139,13 @@ where
 }
 
 #[async_trait::async_trait]
-impl<T> LLM<schema::LocalLLMSize> for LocalLLM<T>
+impl<T> LLM for LocalLLM<T>
 where
     T: llm::KnownModel,
 {
     async fn chat_completion(
         &self,
-        _: schema::LocalLLMSize,
+        _: &str,
         msgs: &[ChatMessage],
     ) -> anyhow::Result<String, LLMError> {
         log::info!("LocalLLM running chat_completion");
@@ -164,6 +168,41 @@ where
         }
         prompt.push_str("[/INST]");
         self.run_model(&prompt).await
+    }
+
+    fn segment_text(&self, text: &str) -> (Vec<String>, String) {
+        let cl = cl100k_base().unwrap();
+        let size = cl.encode_with_special_tokens(text).len();
+        log::debug!("context size: {size}");
+
+        if size <= MAX_TOKENS {
+            (vec![text.to_string()], Default::default())
+        } else {
+            let splits = split_text(text, MAX_TOKENS);
+            (splits, Default::default())
+        }
+    }
+
+    fn truncate_text(&self, text: &str) -> (String, String) {
+        let cl = cl100k_base().unwrap();
+        let total_tokens: usize = cl.encode_with_special_tokens(text).len();
+
+        if total_tokens <= MAX_TOKENS {
+            (text.to_string(), Default::default())
+        } else {
+            let mut buffer = String::new();
+            for txt in text.split(' ') {
+                let with_txt = buffer.clone() + txt;
+                let current_size = cl.encode_with_special_tokens(&with_txt).len();
+                if current_size > MAX_TOKENS {
+                    break;
+                } else {
+                    buffer.push_str(txt);
+                }
+            }
+
+            (buffer, Default::default())
+        }
     }
 }
 

@@ -1,7 +1,11 @@
+use std::str::FromStr;
+
 use reqwest::{header, Response, StatusCode};
 use serde::Serialize;
-use strum_macros::{AsRefStr, Display};
+use strum_macros::{AsRefStr, Display, EnumString};
 use tiktoken_rs::cl100k_base;
+
+use crate::llm::split_text;
 
 use self::schema::ErrorResponse;
 use super::{ChatMessage, LLMError, LLM};
@@ -13,7 +17,7 @@ const CONTEXT_LENGTH_ERROR: &str = "context_length_exceeded";
 pub const MAX_TOKENS: usize = 4_097 - 1_024 - 100;
 pub const MAX_16K_TOKENS: usize = 16_384 - 2_048 - 100;
 
-#[derive(AsRefStr, Display, Clone)]
+#[derive(AsRefStr, Display, Clone, EnumString)]
 pub enum OpenAIModel {
     // Most capable GPT-3.5 model and optimized for chat at 1/10th the cost of text-davinci-003.
     // Will be updated with our latest model iteration 2 weeks after it is released.
@@ -93,10 +97,10 @@ pub struct OpenAIClient {
 }
 
 #[async_trait::async_trait]
-impl LLM<OpenAIModel> for OpenAIClient {
+impl LLM for OpenAIClient {
     async fn chat_completion(
         &self,
-        model: OpenAIModel,
+        model: &str,
         msgs: &[ChatMessage],
     ) -> anyhow::Result<String, LLMError> {
         log::debug!(
@@ -104,6 +108,9 @@ impl LLM<OpenAIModel> for OpenAIClient {
             model,
             msgs.len()
         );
+
+        let model: OpenAIModel = OpenAIModel::from_str(model)
+            .map_err(|err| LLMError::Other(format!("Invalid model: {err}")))?;
 
         let request_body = CompletionRequest::new(&model, msgs);
         let response = self
@@ -132,6 +139,51 @@ impl LLM<OpenAIModel> for OpenAIClient {
             Err(LLMError::Other(warning))
         }
     }
+
+    fn segment_text(&self, content: &str) -> (Vec<String>, String) {
+        let cl = cl100k_base().unwrap();
+        let size = cl.encode_with_special_tokens(content).len();
+
+        log::debug!("Context Size {:?}", size);
+        if size <= MAX_TOKENS {
+            log::debug!("Using standard model");
+            (vec![content.to_string()], OpenAIModel::GPT35.to_string())
+        } else if size <= MAX_16K_TOKENS {
+            log::debug!("Using 16k model");
+            (
+                vec![content.to_string()],
+                OpenAIModel::GPT35_16K.to_string(),
+            )
+        } else {
+            let splits = split_text(content, MAX_16K_TOKENS);
+            log::debug!("Spliting with 16K model splits {:?}", splits.len());
+            (splits, OpenAIModel::GPT35_16K.to_string())
+        }
+    }
+
+    fn truncate_text(&self, text: &str) -> (String, String) {
+        let cl = cl100k_base().unwrap();
+        let total_tokens: usize = cl.encode_with_special_tokens(text).len();
+
+        if total_tokens <= MAX_TOKENS {
+            (text.to_string(), OpenAIModel::GPT35.to_string())
+        } else if total_tokens <= MAX_16K_TOKENS {
+            (text.to_string(), OpenAIModel::GPT35_16K.to_string())
+        } else {
+            let mut buffer = String::new();
+            for txt in text.split(' ') {
+                let with_txt = buffer.clone() + txt;
+                let current_size = cl.encode_with_special_tokens(&with_txt).len();
+                if current_size > MAX_16K_TOKENS {
+                    break;
+                } else {
+                    buffer.push_str(txt);
+                }
+            }
+
+            (buffer, OpenAIModel::GPT35_16K.to_string())
+        }
+    }
 }
 
 impl OpenAIClient {
@@ -155,92 +207,6 @@ impl OpenAIClient {
     }
 }
 
-pub fn segment(content: &str) -> (Vec<String>, OpenAIModel) {
-    let cl = cl100k_base().unwrap();
-    let size = cl.encode_with_special_tokens(content).len();
-
-    log::debug!("Context Size {:?}", size);
-    if size <= MAX_TOKENS {
-        log::debug!("Using standard model");
-        (vec![content.to_string()], OpenAIModel::GPT35)
-    } else if size <= MAX_16K_TOKENS {
-        log::debug!("Using 16k model");
-        (vec![content.to_string()], OpenAIModel::GPT35_16K)
-    } else {
-        let splits = split_text(content, MAX_16K_TOKENS);
-        log::debug!("Spliting with 16K model splits {:?}", splits.len());
-        (splits, OpenAIModel::GPT35_16K)
-    }
-}
-
-/// Truncates a blob of text to the max token size
-pub fn truncate_text(text: &str) -> (String, OpenAIModel) {
-    let cl = cl100k_base().unwrap();
-    let total_tokens: usize = cl.encode_with_special_tokens(text).len();
-
-    if total_tokens <= MAX_TOKENS {
-        (text.to_string(), OpenAIModel::GPT35)
-    } else if total_tokens <= MAX_16K_TOKENS {
-        (text.to_string(), OpenAIModel::GPT35_16K)
-    } else {
-        let mut buffer = String::new();
-        for txt in text.split(' ') {
-            let with_txt = buffer.clone() + txt;
-            let current_size = cl.encode_with_special_tokens(&with_txt).len();
-            if current_size > MAX_16K_TOKENS {
-                break;
-            } else {
-                buffer.push_str(txt);
-            }
-        }
-
-        (buffer, OpenAIModel::GPT35_16K)
-    }
-}
-
-pub fn split_text(text: &str, max_tokens: usize) -> Vec<String> {
-    let cl = cl100k_base().unwrap();
-
-    let total_tokens: usize = cl.encode_with_special_tokens(text).len();
-    let mut doc_parts = Vec::new();
-    if total_tokens <= max_tokens {
-        doc_parts.push(text.into());
-    } else {
-        let split_count = total_tokens
-            .checked_div(max_tokens)
-            .map(|val| val + 2)
-            .unwrap_or(1);
-        let split_size = text.len().checked_div(split_count).unwrap_or(text.len());
-        if split_size == text.len() {
-            doc_parts.push(text.into());
-        } else {
-            let mut part = Vec::new();
-            let mut size = 0;
-            for txt in text.split(' ') {
-                if (size + txt.len()) > split_size {
-                    doc_parts.push(part.join(" "));
-                    let mut end = part.len();
-                    if part.len() > 10 {
-                        end = part.len() - 10;
-                    }
-                    part.drain(0..end);
-                    size = part.join(" ").len();
-                }
-                size += txt.len() + 1;
-                part.push(txt);
-            }
-            if !part.is_empty() {
-                doc_parts.push(part.join(" "));
-            }
-        }
-    }
-
-    doc_parts
-        .iter()
-        .map(|pt| pt.to_string())
-        .collect::<Vec<String>>()
-}
-
 #[cfg(test)]
 mod test {
     use super::{ChatMessage, OpenAIClient, OpenAIModel, LLM};
@@ -256,7 +222,9 @@ mod test {
             ChatMessage::user("Who won the world series in 2020?"),
         ];
 
-        let resp = client.chat_completion(OpenAIModel::GPT35, &msgs).await;
+        let resp = client
+            .chat_completion(OpenAIModel::GPT35.as_ref(), &msgs)
+            .await;
         // dbg!(&resp);
         assert!(resp.is_ok());
     }
@@ -274,7 +242,7 @@ mod test {
         );
 
         let resp = client
-            .chat_completion(OpenAIModel::GPT35, &msgs)
+            .chat_completion(OpenAIModel::GPT35.as_ref(), &msgs)
             .await
             .unwrap();
         dbg!(&resp);
@@ -291,7 +259,7 @@ mod test {
             "../../../../../fixtures/sample_yelp_review.txt"
         ));
         let resp = client
-            .chat_completion(OpenAIModel::GPT35, &msgs)
+            .chat_completion(OpenAIModel::GPT35.as_ref(), &msgs)
             .await
             .unwrap();
 

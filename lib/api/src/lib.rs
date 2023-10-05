@@ -1,8 +1,11 @@
 use dotenv_codegen::dotenv;
-use libmemex::{db::create_connection_by_uri, llm::openai::OpenAIClient};
+use libmemex::{
+    db::create_connection_by_uri,
+    llm::{openai::OpenAIClient, LLM},
+};
 use sea_orm::DatabaseConnection;
 use serde_json::json;
-use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf};
+use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf, sync::Arc};
 use thiserror::Error;
 use warp::{hyper::StatusCode, reject::Reject, Filter, Rejection, Reply};
 
@@ -76,11 +79,13 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
 
     let llm_client =
         OpenAIClient::new(&std::env::var("OPENAI_API_KEY").expect("OpenAI API key not set"));
+
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
+    let llm_client: Arc<Box<dyn LLM>> = Arc::new(Box::new(llm_client));
     let api = warp::path("api")
         .and(endpoints::build(&db_connection, &llm_client))
         .with(warp::trace::request());
@@ -105,7 +110,7 @@ pub fn with_db(
 }
 
 pub fn with_llm(
-    llm: OpenAIClient,
-) -> impl Filter<Extract = (OpenAIClient,), Error = std::convert::Infallible> + Clone {
+    llm: Arc<Box<dyn LLM>>,
+) -> impl Filter<Extract = (Arc<Box<dyn LLM>>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || llm.clone())
 }

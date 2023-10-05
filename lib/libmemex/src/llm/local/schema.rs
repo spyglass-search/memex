@@ -49,9 +49,3 @@ impl From<ModelArchitecture> for ModelArch {
         }
     }
 }
-
-#[derive(Default, Debug, Clone)]
-pub enum LocalLLMSize {
-    #[default]
-    Base,
-}

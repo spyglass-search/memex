@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use crate::{endpoints::json_body, with_db, with_llm};
-use libmemex::llm::openai::OpenAIClient;
+use libmemex::llm::LLM;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -24,7 +26,7 @@ pub struct SummarizeRequest {
 }
 
 fn extract(
-    llm: &OpenAIClient,
+    llm: &Arc<Box<dyn LLM>>,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     warp::path!("action" / "ask")
         .and(warp::post())
@@ -44,7 +46,7 @@ fn summarize(
 }
 
 pub fn build(
-    llm: &OpenAIClient,
+    llm: &Arc<Box<dyn LLM>>,
     db: &DatabaseConnection,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     extract(llm).or(summarize(db))
