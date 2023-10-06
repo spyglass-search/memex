@@ -34,15 +34,12 @@ impl<T> LocalLLM<T>
 where
     T: llm::KnownModel,
 {
-    fn new(model: T) -> Self {
+    fn new(model: T, base_samplers: ConfiguredSamplers) -> Self {
         let bias_sampler = SampleFlatBias::default();
         // Create sampler chain
         let mut samplers = SamplerChain::new();
         samplers += bias_sampler.clone();
-
-        let mut default_samplers = ConfiguredSamplers::default();
-        default_samplers.ensure_default_slots();
-        samplers += default_samplers.builder.into_chain();
+        samplers += base_samplers.builder.into_chain();
 
         let infer_params = llm::InferenceParameters {
             sampler: Arc::new(Mutex::new(samplers)), // sampler: llm::samplers::default_samplers(),
@@ -241,8 +238,7 @@ pub async fn load_from_cfg(
         },
     )?;
 
-    let llm = LocalLLM::new(model);
-    Ok(Box::new(llm))
+    Ok(Box::new(LocalLLM::new(model, config.base_samplers())))
 }
 
 #[cfg(test)]
@@ -255,7 +251,8 @@ mod test {
         let base_dir: PathBuf = "../..".into();
         let model_config: PathBuf = base_dir.join("resources/config.llama2.toml");
 
-        let llm = super::load_from_cfg(model_config, true).await
+        let llm = super::load_from_cfg(model_config, true)
+            .await
             .expect("Unable to load model");
 
         let msgs = vec![

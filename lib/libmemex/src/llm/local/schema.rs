@@ -9,7 +9,7 @@ use llm::{
     ModelArchitecture,
 };
 use serde::Deserialize;
-use std::{path::PathBuf, sync::Arc, sync::Mutex};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum LlmEvent {
@@ -33,7 +33,7 @@ impl LocalLLMConfig {
         }
     }
 
-    pub fn to_inference_params(&self) -> llm::InferenceParameters {
+    pub fn base_samplers(&self) -> ConfiguredSamplers {
         let model = self.model.clone();
         let sampler_builder: SamplerChainBuilder = SamplerChainBuilder::from([
             (
@@ -77,10 +77,7 @@ impl LocalLLMConfig {
             ..Default::default()
         };
         sampler.ensure_default_slots();
-
-        llm::InferenceParameters {
-            sampler: Arc::new(Mutex::new(sampler.builder.into_chain())),
-        }
+        sampler
     }
 }
 
