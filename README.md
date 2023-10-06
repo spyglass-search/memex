@@ -31,8 +31,14 @@ Set `OPENAI_API_KEY` to your API key in the `.env` file or set `LOCAL_LLM_CONFIG
 a LLM configuration file. See `resources/config.llama2.toml` for an example. By
 default, a base memex will use the llama-2 configuration file.
 
+### Supported local models
 
-## Add a document
+Currently we have supported (and have tested) the following models:
+- Llama based models (llama 1 & 2, Mistral, etc.) - *recommended*
+- Gptj (e.g. GPT4All)
+
+
+## Adding a document
 
 NOTE: If the `test` collection does not initially exist, it'll be created.
 
@@ -89,7 +95,7 @@ Or if it's finished, something like so:
 One the task is shown as "Completed", you can now run a query against the doc(s)
 you've just added.
 
-## Run a query
+## Run a search query
 
 ``` bash
 > curl http://localhost:8181/api/collections/test/search \
@@ -107,6 +113,22 @@ you've just added.
         "score": <relevancy score>
     }, ...]
 }
+```
+
+## Ask a question
+```bash
+> curl http://localhost:8181/api/action/ask \
+    -H "Content-Type: application/json" \
+    -X POST \
+    -d "{\"text\": \"<context if any>\", \"query\": \"What is the airspeed velocity of an unladen swallow?\", "json_schema": { .. }}"
+{
+    "time": 1.234,
+    "status": "ok",
+    "result": {
+        "answer": "The airspeed velocity of an unladen swallow is..."
+    }
+}
+
 ```
 
 ## Env variables
