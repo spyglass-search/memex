@@ -93,25 +93,29 @@ pub struct ModelConfig {
     pub repetition_penalty_last_n: usize,
 }
 
+/// TODO: Test on more architectures
 #[derive(Clone, Deserialize)]
 pub enum ModelArch {
-    Bloom,
-    Gpt2,
+    // Bloom,
+    // Gpt2,
     GptJ,
-    GptNeoX,
+    // GptNeoX,
     Llama,
-    Mpt,
+    // Mpt,
 }
 
 impl From<ModelArchitecture> for ModelArch {
     fn from(value: ModelArchitecture) -> Self {
         match value {
-            ModelArchitecture::Bloom => Self::Bloom,
-            ModelArchitecture::Gpt2 => Self::Gpt2,
+            // ModelArchitecture::Bloom => Self::Bloom,
+            // ModelArchitecture::Gpt2 => Self::Gpt2,
             ModelArchitecture::GptJ => Self::GptJ,
-            ModelArchitecture::GptNeoX => Self::GptNeoX,
+            // ModelArchitecture::GptNeoX => Self::GptNeoX,
             ModelArchitecture::Llama => Self::Llama,
-            ModelArchitecture::Mpt => Self::Mpt,
+            // ModelArchitecture::Mpt => Self::Mpt,
+            _ => {
+                panic!("Model architecture not yet supported");
+            }
         }
     }
 }

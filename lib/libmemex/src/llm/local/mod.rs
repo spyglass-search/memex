@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 
 use crate::llm::{split_text, ChatRole};
 
-use self::schema::LocalLLMConfig;
+use self::schema::{LocalLLMConfig, ModelArch};
 
 use super::{ChatMessage, LLMError, LLM};
 mod schema;
@@ -216,29 +216,44 @@ pub async fn load_from_cfg(
     let model_path: PathBuf = parent_dir.join(config.model.path.clone());
 
     let model_params = config.to_model_params();
-    let model = llm::load::<llm::models::Llama>(
-        &model_path,
-        llm::TokenizerSource::Embedded,
-        model_params,
-        move |event| {
-            if report_progress {
-                match &event {
-                    LoadProgress::TensorLoaded {
-                        current_tensor,
-                        tensor_count,
-                    } => {
-                        log::info!("Loaded {}/{} tensors", current_tensor, tensor_count);
-                    }
-                    LoadProgress::Loaded { .. } => {
-                        log::info!("Model finished loading");
-                    }
-                    _ => {}
-                }
-            }
-        },
-    )?;
 
-    Ok(Box::new(LocalLLM::new(model, config.base_samplers())))
+    let progress_cb = move |event| {
+        if report_progress {
+            match &event {
+                LoadProgress::TensorLoaded {
+                    current_tensor,
+                    tensor_count,
+                } => {
+                    log::info!("Loaded {}/{} tensors", current_tensor, tensor_count);
+                }
+                LoadProgress::Loaded { .. } => {
+                    log::info!("Model finished loading");
+                }
+                _ => {}
+            }
+        }
+    };
+
+    match config.model.model_type {
+        ModelArch::GptJ => Ok(Box::new(LocalLLM::new(
+            llm::load::<llm::models::Gpt2>(
+                &model_path,
+                llm::TokenizerSource::Embedded,
+                model_params,
+                progress_cb,
+            )?,
+            config.base_samplers(),
+        ))),
+        ModelArch::Llama => Ok(Box::new(LocalLLM::new(
+            llm::load::<llm::models::Llama>(
+                &model_path,
+                llm::TokenizerSource::Embedded,
+                model_params,
+                progress_cb,
+            )?,
+            config.base_samplers(),
+        ))),
+    }
 }
 
 #[cfg(test)]
