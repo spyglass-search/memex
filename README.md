@@ -23,6 +23,15 @@ since Linux ARM builds are very finicky.
 2023-06-13T05:04:21.518732Z  INFO memex: starting server with roles: [Api, Worker]
 ```
 
+## Using a LLM
+You can use either OpenAI or a local LLM for LLM based functionality (such as the
+summarization or extraction APIs).
+
+Set `OPENAI_API_KEY` to your API key in the `.env` file or set `LOCAL_LLM_CONFIG` to
+a LLM configuration file. See `resources/config.llama2.toml` for an example. By
+default, a base memex will use the llama-2 configuration file.
+
+
 ## Add a document
 
 NOTE: If the `test` collection does not initially exist, it'll be created.
