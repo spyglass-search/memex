@@ -1,7 +1,7 @@
-prompt_template = "resources/templates/clippy_prompt.txt"
+prompt_template = "templates/clippy_prompt.txt"
 
 [model]
-path = "resources/models/gpt4all/gpt4all-j-q4_0-ggjt.bin"
+path = "models/gpt4all/gpt4all-j-q4_0-ggjt.bin"
 model_type = "Gptj"
 prefer_mmap = false
 # The top K words by score are kept during sampling.

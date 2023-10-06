@@ -1,7 +1,7 @@
 use dotenv_codegen::dotenv;
 use libmemex::{
     db::create_connection_by_uri,
-    llm::{openai::OpenAIClient, LLM},
+    llm::{local::load_from_cfg, openai::OpenAIClient, LLM},
 };
 use sea_orm::DatabaseConnection;
 use serde_json::json;
@@ -24,6 +24,14 @@ pub enum ServerError {
 }
 
 impl Reject for ServerError {}
+
+pub struct ApiConfig {
+    pub host: Ipv4Addr,
+    pub port: u16,
+    pub db_uri: String,
+    pub open_ai_key: Option<String>,
+    pub local_llm_config: Option<String>,
+}
 
 // Handle custom errors/rejections
 async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
@@ -62,8 +70,8 @@ pub fn health_check() -> impl Filter<Extract = (impl warp::Reply,), Error = warp
         .map(move || warp::reply::json(&json!({ "version": version })))
 }
 
-pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
-    log::info!("starting api server @ {}:{}", host, port);
+pub async fn start(config: ApiConfig) {
+    log::info!("starting api server @ {}:{}", config.host, config.port);
 
     log::info!("checking for upload directory...");
     let data_dir_path: PathBuf = endpoints::UPLOAD_DATA_DIR.into();
@@ -73,19 +81,26 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
     }
 
     // Attempt to connect to db
-    let db_connection = create_connection_by_uri(&db_uri, true)
+    let db_connection = create_connection_by_uri(&config.db_uri, true)
         .await
-        .unwrap_or_else(|err| panic!("Unable to connect to database: {} - {err}", db_uri));
+        .unwrap_or_else(|err| panic!("Unable to connect to database: {} - {err}", config.db_uri));
 
-    let llm_client =
-        OpenAIClient::new(&std::env::var("OPENAI_API_KEY").expect("OpenAI API key not set"));
+    let llm_client: Arc<Box<dyn LLM>> = if let Some(openai_key) = config.open_ai_key {
+        Arc::new(Box::new(OpenAIClient::new(&openai_key)))
+    } else if let Some(llm_config_path) = config.local_llm_config {
+        let llm = load_from_cfg(llm_config_path.into(), true)
+            .await
+            .expect("Unable to load local LLM");
+        Arc::new(llm)
+    } else {
+        panic!("Please setup OPENAI_API_KEY or LOCAL_LLM_CONFIG");
+    };
 
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE"])
         .allow_headers(["Authorization", "Content-Type"]);
 
-    let llm_client: Arc<Box<dyn LLM>> = Arc::new(Box::new(llm_client));
     let api = warp::path("api")
         .and(endpoints::build(&db_connection, &llm_client))
         .with(warp::trace::request());
@@ -93,7 +108,7 @@ pub async fn start(host: Ipv4Addr, port: u16, db_uri: String) {
     let filters = health_check().or(api).with(cors).recover(handle_rejection);
 
     let (_addr, handle) =
-        warp::serve(filters).bind_with_graceful_shutdown((host, port), async move {
+        warp::serve(filters).bind_with_graceful_shutdown((config.host, config.port), async move {
             tokio::signal::ctrl_c()
                 .await
                 .expect("failed to listen to shutdown signal");

@@ -1,13 +1,16 @@
 use llm::samplers::llm_samplers::samplers::SampleFlatBias;
 use llm::samplers::llm_samplers::types::SamplerChain;
-use llm::InferenceParameters;
 use llm::{self, samplers::ConfiguredSamplers, InferenceSessionConfig};
+use llm::{InferenceParameters, LoadProgress};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tiktoken_rs::cl100k_base;
 use tokio::sync::mpsc;
 
 use crate::llm::{split_text, ChatRole};
+
+use self::schema::LocalLLMConfig;
 
 use super::{ChatMessage, LLMError, LLM};
 mod schema;
@@ -80,7 +83,6 @@ where
                                 std::io::stdout().flush().unwrap();
                                 return;
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -206,34 +208,56 @@ where
     }
 }
 
+pub async fn load_from_cfg(
+    llm_config: PathBuf,
+    report_progress: bool,
+) -> anyhow::Result<Box<dyn LLM>> {
+    let config = std::fs::read_to_string(llm_config.clone())?;
+    let config: LocalLLMConfig = toml::from_str(&config)?;
+
+    let parent_dir = llm_config.parent().unwrap();
+    let model_path: PathBuf = parent_dir.join(config.model.path.clone());
+
+    let model_params = config.to_model_params();
+    let model = llm::load::<llm::models::Llama>(
+        &model_path,
+        llm::TokenizerSource::Embedded,
+        model_params,
+        move |event| {
+            if report_progress {
+                match &event {
+                    LoadProgress::TensorLoaded {
+                        current_tensor,
+                        tensor_count,
+                    } => {
+                        log::info!("Loaded {}/{} tensors", current_tensor, tensor_count);
+                    }
+                    LoadProgress::Loaded { .. } => {
+                        log::info!("Model finished loading");
+                    }
+                    _ => {}
+                }
+            }
+        },
+    )?;
+
+    let llm = LocalLLM::new(model);
+    Ok(Box::new(llm))
+}
+
 #[cfg(test)]
 mod test {
-    use crate::llm::{ChatMessage, LLM};
-
-    use super::schema::LocalLLMConfig;
-    use super::LocalLLM;
+    use crate::llm::ChatMessage;
     use std::path::PathBuf;
 
-    #[ignore]
     #[tokio::test]
     async fn test_prompting() {
         let base_dir: PathBuf = "../..".into();
         let model_config: PathBuf = base_dir.join("resources/config.llama2.toml");
 
-        let config = std::fs::read_to_string(model_config).expect("Unable to read cfg");
-        let config: LocalLLMConfig = toml::from_str(&config).expect("Unable to parse cfg");
-        let model_path: PathBuf = base_dir.join(config.model.path);
+        let llm = super::load_from_cfg(model_config, true).await
+            .expect("Unable to load model");
 
-        let model_params = llm::ModelParameters::default();
-        let model = llm::load::<llm::models::Llama>(
-            &model_path,
-            llm::TokenizerSource::Embedded,
-            model_params,
-            move |_| {},
-        )
-        .expect("Unable to load model");
-
-        let llm = LocalLLM::new(model);
         let msgs = vec![
             ChatMessage::system("You're a helpful assistant. Answer questions as accurately and concisely as possible."),
             ChatMessage::user("Who won the world series in 2020?"),

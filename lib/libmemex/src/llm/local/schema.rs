@@ -1,10 +1,18 @@
-use llm::{LoadProgress, ModelArchitecture};
+use llm::{
+    samplers::{
+        llm_samplers::{
+            configure::{SamplerChainBuilder, SamplerSlot},
+            samplers::{SampleRepetition, SampleTemperature, SampleTopK, SampleTopP},
+        },
+        ConfiguredSamplers,
+    },
+    ModelArchitecture,
+};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc, sync::Mutex};
 
 #[derive(Debug)]
 pub enum LlmEvent {
-    ModelLoadProgress(LoadProgress),
     TokenReceived(String),
     InferenceDone,
 }
@@ -13,6 +21,67 @@ pub enum LlmEvent {
 pub struct LocalLLMConfig {
     pub prompt_template: PathBuf,
     pub model: ModelConfig,
+}
+
+impl LocalLLMConfig {
+    pub fn to_model_params(&self) -> llm::ModelParameters {
+        llm::ModelParameters {
+            prefer_mmap: false,
+            context_size: 2048,
+            lora_adapters: None,
+            ..Default::default()
+        }
+    }
+
+    pub fn to_inference_params(&self) -> llm::InferenceParameters {
+        let model = self.model.clone();
+        let sampler_builder: SamplerChainBuilder = SamplerChainBuilder::from([
+            (
+                "repetition",
+                SamplerSlot::new_chain(
+                    move || {
+                        Box::new(
+                            SampleRepetition::default()
+                                .penalty(model.repeat_penalty)
+                                .last_n(model.repetition_penalty_last_n),
+                        )
+                    },
+                    [],
+                ),
+            ),
+            (
+                "topk",
+                SamplerSlot::new_single(
+                    move || Box::new(SampleTopK::default().k(model.top_k)),
+                    Option::<SampleTopK>::None,
+                ),
+            ),
+            (
+                "topp",
+                SamplerSlot::new_single(
+                    move || Box::new(SampleTopP::default().p(model.top_p)),
+                    Option::<SampleTopK>::None,
+                ),
+            ),
+            (
+                "temperature",
+                SamplerSlot::new_single(
+                    move || Box::new(SampleTemperature::default().temperature(model.temperature)),
+                    Option::<SampleTopK>::None,
+                ),
+            ),
+        ]);
+
+        let mut sampler = ConfiguredSamplers {
+            builder: sampler_builder,
+            ..Default::default()
+        };
+        sampler.ensure_default_slots();
+
+        llm::InferenceParameters {
+            sampler: Arc::new(Mutex::new(sampler.builder.into_chain())),
+        }
+    }
 }
 
 #[derive(Clone, Deserialize)]
