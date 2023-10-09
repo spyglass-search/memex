@@ -262,6 +262,8 @@ mod test {
     use crate::llm::ChatMessage;
     use std::path::PathBuf;
 
+    // ignoring this for now since we don't want to continually download models
+    #[ignore]
     #[tokio::test]
     async fn test_prompting() {
         let base_dir: PathBuf = "../..".into();
