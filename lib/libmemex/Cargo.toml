@@ -23,7 +23,6 @@ rust-bert = { version = "0.21.0", features= ["download-libtorch"] }
 sea-orm = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sherpa = { path = "../sherpa" }
 strum = "0.25"
 strum_macros = "0.25"
 tera = "1.19.0"
