@@ -37,6 +37,7 @@ pub async fn handle_extract(
         .await
         .map_err(|err| ServerError::Other(err.to_string()))?;
 
+    log::debug!("llm response: {response}");
     let val = serde_json::from_str::<serde_json::Value>(&response)
         .map_err(|err| ServerError::Other(err.to_string()))?;
 

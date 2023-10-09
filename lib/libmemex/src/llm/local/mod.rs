@@ -224,7 +224,8 @@ pub async fn load_from_cfg(
                     current_tensor,
                     tensor_count,
                 } => {
-                    log::info!("Loaded {}/{} tensors", current_tensor, tensor_count);
+                    let percent = current_tensor * 100 / tensor_count;
+                    log::info!("Loaded tensors: {percent} ({current_tensor}/{tensor_count})");
                 }
                 LoadProgress::Loaded { .. } => {
                     log::info!("Model finished loading");
