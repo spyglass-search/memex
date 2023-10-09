@@ -1,7 +1,7 @@
 use libmemex::db::{document, embedding, queue};
-use libmemex::embedding::{ModelConfig, SentenceEmbedder};
-use libmemex::llm::openai::{segment, OpenAIClient};
-use libmemex::llm::prompter;
+use libmemex::llm::embedding::{ModelConfig, SentenceEmbedder};
+use libmemex::llm::openai::OpenAIClient;
+use libmemex::llm::{prompter, LLM};
 use libmemex::storage::{VectorData, VectorStorage};
 use libmemex::NAMESPACE;
 use sea_orm::{prelude::*, Set, TransactionTrait};
@@ -67,13 +67,13 @@ pub async fn process_embeddings(
 
 pub async fn generate_summary(client: &OpenAIClient, payload: &str) -> anyhow::Result<String> {
     // Break task content into segments
-    let (splits, model) = segment(payload);
+    let (splits, model) = client.segment_text(payload);
     let mut buffer = String::new();
     for (idx, segment) in splits.iter().enumerate() {
         let time = std::time::Instant::now();
         let request = prompter::summarize(segment);
 
-        if let Ok(content) = client.chat_completion(&model, &request).await {
+        if let Ok(content) = client.chat_completion(model.as_ref(), &request).await {
             buffer.push_str(&content);
         }
 

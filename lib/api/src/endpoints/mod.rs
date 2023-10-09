@@ -1,4 +1,6 @@
-use libmemex::llm::openai::OpenAIClient;
+use std::sync::Arc;
+
+use libmemex::llm::LLM;
 use sea_orm::DatabaseConnection;
 use serde::de::DeserializeOwned;
 use warp::Filter;
@@ -24,7 +26,7 @@ pub fn json_body<T: std::marker::Send + DeserializeOwned>(
 
 pub fn build(
     db: &DatabaseConnection,
-    llm: &OpenAIClient,
+    llm: &Arc<Box<dyn LLM>>,
 ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
     actions::filters::build(llm, db)
         .or(collections::filters::build(db))

@@ -1,3 +1,4 @@
+use api::ApiConfig;
 use clap::{Parser, Subcommand};
 use futures::future::join_all;
 use std::{net::Ipv4Addr, process::ExitCode};
@@ -25,6 +26,10 @@ pub struct Args {
     database_connection: Option<String>,
     #[clap(long, value_parser, value_name = "VECTOR_CONNECTION", env)]
     vector_connection: Option<String>,
+    #[clap(long, value_parser, value_name = "OPENAI_API_KEY", env)]
+    openai_api_key: Option<String>,
+    #[clap(long, value_parser, value_name = "LOCAL_LLM_CONFIG", env)]
+    local_llm_config: Option<String>,
 }
 
 #[derive(Debug, Display, Clone, PartialEq, EnumString)]
@@ -100,9 +105,21 @@ async fn main() -> ExitCode {
 
         let _vector_store_uri = args.vector_connection.expect("VECTOR_CONNECTION not set");
 
+        if args.openai_api_key.is_none() && args.local_llm_config.is_none() {
+            log::error!("Must set either OPENAI_API_KEY or LOCAL_LLM_CONFIG");
+            return ExitCode::FAILURE;
+        }
+
         if roles.contains(&Roles::Api) {
             let db_uri = db_uri.clone();
-            handles.push(tokio::spawn(api::start(host, port, db_uri)));
+            let cfg = ApiConfig {
+                host,
+                port,
+                db_uri,
+                open_ai_key: args.openai_api_key,
+                local_llm_config: args.local_llm_config,
+            };
+            handles.push(tokio::spawn(api::start(cfg)));
         }
 
         if roles.contains(&Roles::Worker) {
