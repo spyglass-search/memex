@@ -48,15 +48,9 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         message = "METHOD_NOT_ALLOWED".into();
     } else if let Some(err) = err.find::<ServerError>() {
         (code, message) = match err {
-            ServerError::ClientRequestError(err) => {
-                (StatusCode::BAD_REQUEST, err.to_string())
-            },
-            ServerError::DatabaseError(err) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
-            },
-            ServerError::Other(err) => {
-                (StatusCode::BAD_REQUEST, err.to_string())
-            }
+            ServerError::ClientRequestError(err) => (StatusCode::BAD_REQUEST, err.to_string()),
+            ServerError::DatabaseError(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            ServerError::Other(err) => (StatusCode::BAD_REQUEST, err.to_string()),
         };
     } else {
         // We should have expected this... Just log and say its a 500
